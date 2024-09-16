@@ -146,7 +146,7 @@ vec3 sdf_normal(vec3 point) {
 vec3 get_normal(vec3 point) {
     float dist = sdf(point);
     if (dist == sdf_road(point) && point.x + point.z > -10.0) {
-        return vec3(texture(iChannel1, vec2(remainder(point.z / 40.0), remainder(point.x / 40.0))));
+        return vec3(texture(iChannel3, vec2(remainder(point.z / 40.0), remainder(point.x / 40.0))));
     } else {
         return sdf_normal(point);
     }
@@ -301,12 +301,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             vec3 color = clamp_color(get_color(point, ray));
             result_color += color * current_color_power;
             position = point - ray * 0.01; // TODO separate sdfs? or how to cast ray
-            ray = -mirror(ray, sdf_normal(point));
+            ray = -mirror(ray, get_normal(point));
         } else {
             result_color += vec3(texture(iChannel2, ray)) * current_color_power;
         }
     }
     fragColor = vec4(result_color, 1.0);
 }
-
-
