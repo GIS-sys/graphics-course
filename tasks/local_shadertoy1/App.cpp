@@ -184,7 +184,7 @@ void App::drawFrame()
       //currentCmdBuf.pushConstants(
       //  pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
       etna::flush_barriers(currentCmdBuf);
-      currentCmdBuf.dispatch(1, 1, 1);
+      currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);//; //dispatch(1, 1, 1);
 
       //renderScene(currentCmdBuf, lightMatrix, pipeline.getVkPipelineLayout());
       etna::set_state(
