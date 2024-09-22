@@ -5,6 +5,8 @@
 #include <etna/ComputePipeline.hpp>
 #include <etna/Image.hpp>
 #include <etna/GlobalContext.hpp>
+#include <etna/BlockingTransferHelper.hpp>
+#include <etna/Sampler.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
 
@@ -31,5 +33,9 @@ private:
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
   etna::ComputePipeline pipeline;
+  etna::Image toyMap;
+  //etna::Buffer bufA;
+  std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
+  etna::Sampler defaultSampler;
   //etna::GlobalContext* context;
 };

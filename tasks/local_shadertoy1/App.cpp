@@ -3,6 +3,8 @@
 #include <etna/Etna.hpp>
 #include <etna/GlobalContext.hpp>
 #include <etna/PipelineManager.hpp>
+#include <etna/Profiling.hpp>
+#include <etna/RenderTargetStates.hpp>
 
 
 App::App()
@@ -77,6 +79,18 @@ App::App()
   // TODO: Initialize any additional resources you require here!
   etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY_SHADERS_ROOT "toy.comp.spv"});
   pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
+  toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{2048, 2048, 1},
+    .name = "toy_map",
+    .format = vk::Format::eD16Unorm,
+    .imageUsage =
+      vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
+  });
+  /*bufA = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
+    .size = sizeof(int32_t) * 5 * 7,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+    .name = "A",
+  });*/
    /*etna::initialize(etna::InitParams{
     .applicationName = "ComputeSample",
     .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
@@ -149,7 +163,31 @@ void App::drawFrame()
 
 
       // TODO: Record your commands here!
-      
+      ETNA_PROFILE_GPU(currentCmdBuf, renderToyShader);
+      /*etna::RenderTargetState renderTargets(
+        currentCmdBuf,
+        {{0, 0}, {2048, 2048}},
+        {},
+        {.image = toyMap.get(), .view = toyMap.getView({})});
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());*/
+      auto simpleComputeInfo = etna::get_shader_program("local_shadertoy1_compute");
+      auto set = etna::create_descriptor_set(
+        simpleComputeInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
+          etna::Binding{0, toyMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+        });
+      vk::DescriptorSet vkSet = set.getVkSet();
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+      /*currentCmdBuf.pushConstants(
+        pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);*/
+      etna::flush_barriers(currentCmdBuf);
+      currentCmdBuf.dispatch(1, 1, 1);
+
+      //renderScene(currentCmdBuf, lightMatrix, pipeline.getVkPipelineLayout());
+ 
 
 
       // At the end of "rendering", we are required to change how the pixels of the
