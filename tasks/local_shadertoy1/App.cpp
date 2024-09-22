@@ -75,6 +75,16 @@ App::App()
 
 
   // TODO: Initialize any additional resources you require here!
+  etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY_SHADERS_ROOT "toy.comp.spv"});
+  pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
+   /*etna::initialize(etna::InitParams{
+    .applicationName = "ComputeSample",
+    .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
+    // Uncomment if etna selects the incorrect GPU for you
+    // .physicalDeviceIndexOverride = 0,
+  });*/
+  //context = &etna::get_context();
+  //pipeline = context->getPipelineManager().createComputePipeline("simple_compute", {});
 }
 
 App::~App()
@@ -139,6 +149,7 @@ void App::drawFrame()
 
 
       // TODO: Record your commands here!
+      
 
 
       // At the end of "rendering", we are required to change how the pixels of the
