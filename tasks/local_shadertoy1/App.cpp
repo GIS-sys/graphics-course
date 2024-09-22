@@ -204,14 +204,14 @@ void App::drawFrame()
         vk::ImageLayout::eTransferSrcOptimal,
         backbuffer,
         vk::ImageLayout::eTransferDstOptimal,
-        vk::ImageBlit{
+        vk::ImageBlit {
           .srcSubresource = {.aspectMask=vk::ImageAspectFlagBits::eColor, .layerCount=1,},
-          .srcOffsets = {
+          .srcOffsets = std::array<vk::Offset3D, 2> {
             vk::Offset3D{},
             vk::Offset3D{.x =static_cast<int32_t>(resolution.x), .y=static_cast<int32_t>(resolution.y), .z = 1}
           },
           .dstSubresource = {.aspectMask=vk::ImageAspectFlagBits::eColor, .layerCount=1},
-          .dstOffsets = {
+          .dstOffsets = std::array<vk::Offset3D, 2> {
             vk::Offset3D{},
             vk::Offset3D{.x =static_cast<int32_t>(resolution.x), .y=static_cast<int32_t>(resolution.y), .z = 1}
           }
