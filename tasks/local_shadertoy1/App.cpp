@@ -80,11 +80,11 @@ App::App()
   etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY_SHADERS_ROOT "toy.comp.spv"});
   pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
   toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
-    .extent = vk::Extent3D{2048, 2048, 1},
+    .extent = vk::Extent3D{1280, 720, 1},
     .name = "toy_map",
     .format = vk::Format::eD16Unorm,
     .imageUsage =
-      vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
+      vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::DescriptorType::eStorageImage,
   });
   /*bufA = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
     .size = sizeof(int32_t) * 5 * 7,
@@ -181,8 +181,8 @@ void App::drawFrame()
       currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
       currentCmdBuf.bindDescriptorSets(
         vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
-      /*currentCmdBuf.pushConstants(
-        pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);*/
+      //currentCmdBuf.pushConstants(
+      //  pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
       etna::flush_barriers(currentCmdBuf);
       currentCmdBuf.dispatch(1, 1, 1);
 
