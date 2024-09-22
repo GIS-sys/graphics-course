@@ -82,9 +82,9 @@ App::App()
   toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{1280, 720, 1},
     .name = "toy_map",
-    .format = vk::Format::eD16Unorm,
+    .format = vk::Format::eR8G8B8A8Snorm,
     .imageUsage =
-      vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::DescriptorType::eStorageImage,
+      vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
   });
   /*bufA = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
     .size = sizeof(int32_t) * 5 * 7,
@@ -175,7 +175,7 @@ void App::drawFrame()
         simpleComputeInfo.getDescriptorLayoutId(0),
         currentCmdBuf,
         {
-          etna::Binding{0, toyMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          etna::Binding{0, toyMap.genBinding(defaultSampler.get(), vk::ImageLayout::eGeneral)}
         });
       vk::DescriptorSet vkSet = set.getVkSet();
       currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
