@@ -5,7 +5,8 @@ cd graphics-course;
 rm -rf build && mkdir build && cd build;
 cmake -DCMAKE_BUILD_TYPE=Debug .. && make;
 cd tasks/local_shadertoy1;
-gdb local_shadertoy;
+export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
+./local_shadertoy;
 ```
 
 # Локальный Shadertoy 1
