@@ -80,7 +80,7 @@ App::App()
   etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY_SHADERS_ROOT "toy.comp.spv"});
   pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
   toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
-    .extent = vk::Extent3D{1280, 720, 1},
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
     .name = "toy_map",
     .format = vk::Format::eR8G8B8A8Snorm,
     .imageUsage =
@@ -187,6 +187,36 @@ void App::drawFrame()
       currentCmdBuf.dispatch(1, 1, 1);
 
       //renderScene(currentCmdBuf, lightMatrix, pipeline.getVkPipelineLayout());
+      etna::set_state(
+        currentCmdBuf,
+        toyMap.get(),
+        // We are going to use the texture at the transfer stage...
+        vk::PipelineStageFlagBits2::eTransfer,
+        // ...to transfer-read stuff from it...
+        vk::AccessFlagBits2::eTransferRead,
+        // ...and want it to have the appropriate layout.
+        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageAspectFlagBits::eColor);
+
+      etna::flush_barriers(currentCmdBuf);
+      currentCmdBuf.blitImage(
+        toyMap.get(),
+        vk::ImageLayout::eTransferSrcOptimal,
+        backbuffer,
+        vk::ImageLayout::eTransferDstOptimal,
+        vk::ImageBlit{
+          .srcSubresource = {.aspectMask=vk::ImageAspectFlagBits::eColor, .layerCount=1,},
+          .srcOffsets = {
+            vk::Offset3D{},
+            vk::Offset3D{.x =static_cast<int32_t>(resolution.x), .y=static_cast<int32_t>(resolution.y), .z = 1}
+          },
+          .dstSubresource = {.aspectMask=vk::ImageAspectFlagBits::eColor, .layerCount=1},
+          .dstOffsets = {
+            vk::Offset3D{},
+            vk::Offset3D{.x =static_cast<int32_t>(resolution.x), .y=static_cast<int32_t>(resolution.y), .z = 1}
+          }
+        },
+        vk::Filter::eNearest);
  
 
 
