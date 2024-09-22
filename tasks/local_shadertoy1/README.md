@@ -1,3 +1,13 @@
+# How to run
+
+```
+cd graphics-course;
+rm -rf build && mkdir build && cd build;
+cmake -DCMAKE_BUILD_TYPE=Debug .. && make;
+cd tasks/local_shadertoy1;
+gdb local_shadertoy;
+```
+
 # Локальный Shadertoy 1
 
 **Зависимости: [shadertoy1](/tasks/shadertoy2/)**.
