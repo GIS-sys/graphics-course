@@ -86,19 +86,6 @@ App::App()
     .imageUsage =
       vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
   });
-  /*bufA = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
-    .size = sizeof(int32_t) * 5 * 7,
-    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-    .name = "A",
-  });*/
-   /*etna::initialize(etna::InitParams{
-    .applicationName = "ComputeSample",
-    .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
-    // Uncomment if etna selects the incorrect GPU for you
-    // .physicalDeviceIndexOverride = 0,
-  });*/
-  //context = &etna::get_context();
-  //pipeline = context->getPipelineManager().createComputePipeline("simple_compute", {});
 }
 
 App::~App()
@@ -164,12 +151,6 @@ void App::drawFrame()
 
       // TODO: Record your commands here!
       ETNA_PROFILE_GPU(currentCmdBuf, renderToyShader);
-      /*etna::RenderTargetState renderTargets(
-        currentCmdBuf,
-        {{0, 0}, {2048, 2048}},
-        {},
-        {.image = toyMap.get(), .view = toyMap.getView({})});
-      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());*/
       auto simpleComputeInfo = etna::get_shader_program("local_shadertoy1_compute");
       auto set = etna::create_descriptor_set(
         simpleComputeInfo.getDescriptorLayoutId(0),
@@ -181,12 +162,9 @@ void App::drawFrame()
       currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
       currentCmdBuf.bindDescriptorSets(
         vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
-      //currentCmdBuf.pushConstants(
-      //  pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
       etna::flush_barriers(currentCmdBuf);
-      currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);//; //dispatch(1, 1, 1);
+      currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);
 
-      //renderScene(currentCmdBuf, lightMatrix, pipeline.getVkPipelineLayout());
       etna::set_state(
         currentCmdBuf,
         toyMap.get(),

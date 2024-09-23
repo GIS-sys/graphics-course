@@ -34,8 +34,6 @@ private:
 
   etna::ComputePipeline pipeline;
   etna::Image toyMap;
-  //etna::Buffer bufA;
   std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
   etna::Sampler defaultSampler;
-  //etna::GlobalContext* context;
 };
