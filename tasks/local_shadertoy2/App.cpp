@@ -211,9 +211,7 @@ void App::drawFrame()
       // TODO: Record your commands here!
 
       // --- Constants ---
-      float time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000);// / 1'000'000.0;
-      std::cout << time << " ";
-      time = 100.0;
+      float time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
 
 
       // --- Texture ---
