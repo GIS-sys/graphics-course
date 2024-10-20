@@ -5,8 +5,9 @@
 #include <etna/ComputePipeline.hpp>
 #include <etna/GraphicsPipeline.hpp>
 #include <etna/Image.hpp>
-#include <etna/Sampler.hpp>
+#include <etna/GlobalContext.hpp>
 #include <etna/BlockingTransferHelper.hpp>
+#include <etna/Sampler.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
 
@@ -34,15 +35,12 @@ private:
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
-  etna::ComputePipeline texturePipeline;
-  etna::Image textureImage;
-  etna::Sampler textureSampler;
+  etna::GraphicsPipeline pipeline;
+  etna::ComputePipeline computePipeline;
+  etna::Image image;
+  etna::Image computeImage;
+  etna::Sampler sampler;
+  etna::Sampler computeSampler;
 
   std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
-  etna::Image fileTextureImage;
-  etna::Sampler fileTextureSampler;
-
-  etna::GraphicsPipeline shaderPipeline;
-
-  std::chrono::system_clock::time_point timeStart;
 };
