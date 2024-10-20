@@ -82,19 +82,14 @@ App::App()
 
   // TODO: Initialize any additional resources you require here!
 
-
-  // --- Procedural Texture Init ---
-
-  etna::create_program(
-    "procedural_texture", 
-    {LOCAL_SHADERTOY2_SHADERS_ROOT "procedural_texture.comp.spv"});
+  etna::create_program("local_shadertoy2_texture", {LOCAL_SHADERTOY2_SHADERS_ROOT "texture.comp.spv"});
 
   computePipeline =
-    etna::get_context().getPipelineManager().createComputePipeline("procedural_texture", {});
+    etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy2_texture", {});
 
   computeImage = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
-    .name = "procedural_texture",
+    .name = "local_shadertoy2_texture",
     .format = vk::Format::eR8G8B8A8Unorm,
     .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage});
 
@@ -135,8 +130,8 @@ App::App()
 
   etna::create_program(
     "shader",
-    {LOCAL_SHADERTOY2_SHADERS_ROOT "main_shader.vert.spv",
-     LOCAL_SHADERTOY2_SHADERS_ROOT "main_shader.frag.spv"});
+    {LOCAL_SHADERTOY2_SHADERS_ROOT "toy.vert.spv",
+     LOCAL_SHADERTOY2_SHADERS_ROOT "toy.frag.spv"});
 
   pipeline = 
       etna::get_context().getPipelineManager().createGraphicsPipeline(
@@ -216,7 +211,7 @@ void App::drawFrame()
 
       // --- Texture ---
       {
-        auto computeInfo = etna::get_shader_program("procedural_texture");
+        auto computeInfo = etna::get_shader_program("local_shadertoy2_texture");
 
         auto set = etna::create_descriptor_set(
           computeInfo.getDescriptorLayoutId(0),
