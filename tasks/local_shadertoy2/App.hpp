@@ -3,6 +3,7 @@
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
 #include <etna/ComputePipeline.hpp>
+#include <etna/GraphicsPipeline.hpp>
 #include <etna/Image.hpp>
 #include <etna/GlobalContext.hpp>
 #include <etna/BlockingTransferHelper.hpp>
@@ -32,8 +33,8 @@ private:
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
-  etna::ComputePipeline pipeline;
-  etna::Image toyMap;
+  etna::GraphicsPipeline pipeline;
+  etna::Image image;
   std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
   etna::Sampler defaultSampler;
 };

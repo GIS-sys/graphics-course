@@ -77,14 +77,28 @@ App::App()
 
 
   // TODO: Initialize any additional resources you require here!
-  etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY2_SHADERS_ROOT "toy.comp.spv"});
-  pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
-  toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
+  // TODO load all shaders
+  etna::create_program("local_shadertoy2_graphics", {LOCAL_SHADERTOY2_SHADERS_ROOT "toy.comp.spv"});
+  pipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
+    "local_shadertoy2_graphics",
+    etna::GraphicsPipeline::CreateInfo{
+      .rasterizationConfig =
+        vk::PipelineRasterizationStateCreateInfo{
+          .polygonMode = vk::PolygonMode::eFill,
+          .cullMode = vk::CullModeFlagBits::eBack,
+          .frontFace = vk::FrontFace::eCounterClockwise,
+          .lineWidth = 1.f,
+        },
+      .fragmentShaderOutput =
+        {
+          .depthAttachmentFormat = vk::Format::eD32Sfloat,
+        },
+    });
+  image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
-    .name = "toy_map",
-    .format = vk::Format::eR8G8B8A8Snorm,
-    .imageUsage =
-      vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
+    .name = "local_shadertoy2_image",
+    .format = vk::Format::eD32Sfloat,
+    .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
   });
 }
 
@@ -156,7 +170,7 @@ void App::drawFrame()
         simpleComputeInfo.getDescriptorLayoutId(0),
         currentCmdBuf,
         {
-          etna::Binding{0, toyMap.genBinding(defaultSampler.get(), vk::ImageLayout::eGeneral)}
+          etna::Binding{0, image.genBinding(defaultSampler.get(), vk::ImageLayout::eGeneral)}
         });
       vk::DescriptorSet vkSet = set.getVkSet();
       currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
@@ -167,7 +181,7 @@ void App::drawFrame()
 
       etna::set_state(
         currentCmdBuf,
-        toyMap.get(),
+        image.get(),
         // We are going to use the texture at the transfer stage...
         vk::PipelineStageFlagBits2::eTransfer,
         // ...to transfer-read stuff from it...
@@ -178,7 +192,7 @@ void App::drawFrame()
 
       etna::flush_barriers(currentCmdBuf);
       currentCmdBuf.blitImage(
-        toyMap.get(),
+        image.get(),
         vk::ImageLayout::eTransferSrcOptimal,
         backbuffer,
         vk::ImageLayout::eTransferDstOptimal,
