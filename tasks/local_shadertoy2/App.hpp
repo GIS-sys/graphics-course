@@ -12,6 +12,14 @@
 #include "wsi/OsWindowingManager.hpp"
 
 
+struct Constants
+{
+  glm::uvec2 res;
+  glm::uvec2 cursor;
+  double time;
+};
+
+
 class App
 {
 public:
@@ -34,7 +42,11 @@ private:
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
   etna::GraphicsPipeline pipeline;
+  etna::ComputePipeline computePipeline;
   etna::Image image;
+  etna::Image computeImage;
+  etna::Sampler sampler;
+  etna::Sampler computeSampler;
+
   std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
-  etna::Sampler defaultSampler;
 };
