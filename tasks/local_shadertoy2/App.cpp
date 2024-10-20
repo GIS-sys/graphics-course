@@ -83,25 +83,37 @@ App::App()
   // TODO: Initialize any additional resources you require here!
 
   etna::create_program("local_shadertoy2_texture", {LOCAL_SHADERTOY2_SHADERS_ROOT "texture.comp.spv"});
-
-  computePipeline =
-    etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy2_texture", {});
-
+  computePipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy2_texture", {});
   computeImage = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
-    .name = "local_shadertoy2_texture",
+    .name = "local_shadertoy2_image",
     .format = vk::Format::eR8G8B8A8Unorm,
-    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage});
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+  });
+  computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "computeSampler"});
 
-  computeSampler = etna::Sampler(etna::Sampler::CreateInfo{
-    .addressMode = vk::SamplerAddressMode::eRepeat, .name = "computeSampler"});
+  etna::create_program(
+    "shader",
+    {
+      LOCAL_SHADERTOY2_SHADERS_ROOT "toy.vert.spv",
+      LOCAL_SHADERTOY2_SHADERS_ROOT "toy.frag.spv"
+    }
+  );
 
+  pipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
+    "shader",
+    etna::GraphicsPipeline::CreateInfo{
+      .fragmentShaderOutput =
+        {
+          .colorAttachmentFormats = {vk::Format::eB8G8R8A8Srgb},
+          .depthAttachmentFormat = vk::Format::eD32Sfloat,
+        },
+    }
+  );
 
-  // --- Texture Init ---
 
   int width, height, channels;
-  unsigned char* image_data = stbi_load(
-    GRAPHICS_COURSE_RESOURCES_ROOT "/textures/test_tex_1.png", &width, &height, &channels, 4);
+  unsigned char* image_data = stbi_load(LOCAL_SHADERTOY2_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png", &width, &height, &channels, 4);
 
   image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{static_cast<unsigned>(width), static_cast<unsigned>(height), 1},
@@ -122,27 +134,6 @@ App::App()
 
   transferHelper->uploadImage(*OneShotCommands, image, 0, 0,
       std::span<const std::byte>(reinterpret_cast<const std::byte*>(image_data), width * height * 4));
-
-  stbi_image_free(image_data);
-
-
-  // --- Shader Init ---
-
-  etna::create_program(
-    "shader",
-    {LOCAL_SHADERTOY2_SHADERS_ROOT "toy.vert.spv",
-     LOCAL_SHADERTOY2_SHADERS_ROOT "toy.frag.spv"});
-
-  pipeline = 
-      etna::get_context().getPipelineManager().createGraphicsPipeline(
-          "shader", 
-          etna::GraphicsPipeline::CreateInfo{
-              .fragmentShaderOutput = 
-              {
-                  .colorAttachmentFormats = {vk::Format::eB8G8R8A8Srgb}
-              },
-          });
-
 }
 
 App::~App()
