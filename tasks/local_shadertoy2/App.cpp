@@ -210,36 +210,30 @@ void App::drawFrame()
         .time = time,
       };
 
-      // --- Texture ---
-      {
-        auto computeInfo = etna::get_shader_program("local_shadertoy2_texture");
 
-        auto set = etna::create_descriptor_set(
-          computeInfo.getDescriptorLayoutId(0),
-          currentCmdBuf,
-          {
-                etna::Binding{0, computeImage.genBinding({}, vk::ImageLayout::eGeneral)}
-          });
 
-        vk::DescriptorSet vkSet = set.getVkSet();
+      ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
-        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipeline());
-        currentCmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipelineLayout(),
-          0, 1, &vkSet, 0, nullptr);
-
-        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
-          computePipeline.getVkPipelineLayout(),
-          vk::ShaderStageFlagBits::eCompute,
-          0,
-          sizeof(constants),
-          &constants
-        );
-
-        etna::flush_barriers(currentCmdBuf);
-
-        currentCmdBuf.dispatch(resolution.x / 16, resolution.y / 16, 1);
-      }
-
+      auto simpleComputeInfo = etna::get_shader_program("local_shadertoy2_texture");
+      auto set = etna::create_descriptor_set(
+        simpleComputeInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
+          etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eGeneral)}
+        });
+      vk::DescriptorSet vkSet = set.getVkSet();
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipeline());
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
+        computePipeline.getVkPipelineLayout(),
+        vk::ShaderStageFlagBits::eCompute,
+        0,
+        sizeof(constants),
+        &constants
+      );
+      etna::flush_barriers(currentCmdBuf);
+      currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);
 
       etna::set_state(
         currentCmdBuf,
@@ -248,9 +242,7 @@ void App::drawFrame()
         vk::AccessFlagBits2::eShaderSampledRead,
         vk::ImageLayout::eShaderReadOnlyOptimal,
         vk::ImageAspectFlagBits::eColor);
-
       etna::flush_barriers(currentCmdBuf);
-
 
       // --- Drawing ---
       {
