@@ -1,14 +1,25 @@
-Step 1
+# Step 1
 
 ```
 cd build
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make && ./tasks/inflight_frames/inflight_frames
 ```
 
-Without simulating high load:
-GPU: renderTexture takes 2.3 ms, renderShader takes 2.3ms
-CPU: drawFrame takse 1.98 ms, update takes 0.03 ms
+Without simulating high load (min sdf step = 0.00001):
+GPU: renderLocalShaderToy2 takes 8.54 ms, renderShader 7.55 ms, renderTexture 11.76 ms
+CPU: < 1 ms
 
-Simulating high load:
-GPU: ???
-CPU: ???
+Simulating high load (min sdf step = 0.0000003):
+GPU: renderLocalShaderToy2 takes 15.7 ms, renderShader 14.6 ms, renderTexture 12.4 ms
+CPU: 6.07 ms
+
+When vsync=false it doesn't really change, all in the boundaries of the measurement error.
+
+
+Most time is spent in acquireNext. Probably, that is why increasing the number of frames in flight will increase performance.
+
+
+
+# Step 2
+
+

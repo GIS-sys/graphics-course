@@ -9,12 +9,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <chrono>
+#include <thread>
 #include <iostream>
 
 
 App::App()
   : resolution{1280, 720}
-  , useVsync{true}
+  , useVsync{false}
 {
   // First, we need to initialize Vulkan, which is not trivial because
   // extensions are required for just about anything.
@@ -266,6 +267,7 @@ void App::drawFrame()
 
       etna::flush_barriers(currentCmdBuf);
 
+      std::this_thread::sleep_for(std::chrono::milliseconds(6));
 
       {
         ETNA_PROFILE_GPU(currentCmdBuf, renderShader);

@@ -256,7 +256,7 @@ vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
 vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
-    float MIN_STEP = 0.00001;
+    float MIN_STEP = 0.0000003;
     hit = true;
     vec3 ray_step = ray / length(ray);
     for (int i = 0; i < 500; ++i) {
