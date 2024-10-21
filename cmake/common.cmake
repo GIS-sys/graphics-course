@@ -20,4 +20,5 @@ endif()
 add_compile_definitions(
   GRAPHICS_COURSE_RESOURCES_ROOT="${PROJECT_SOURCE_DIR}/resources"
   GRAPHICS_COURSE_ROOT="${PROJECT_SOURCE_DIR}"
+  INFLIGHT_FRAMES_SHADERS_ROOT="${PROJECT_SOURCE_DIR}/build/tasks/inflight_frames/shaders/"
 )
