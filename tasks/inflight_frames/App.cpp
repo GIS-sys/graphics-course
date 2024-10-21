@@ -43,7 +43,7 @@ App::App()
       .deviceExtensions = deviceExtensions,
       // Replace with an index if etna detects your preferred GPU incorrectly
       .physicalDeviceIndexOverride = {},
-      .numFramesInFlight = 3,
+      .numFramesInFlight = INFLIGHT_FRAMES_AMOUNT,
     });
   }
 
@@ -146,7 +146,7 @@ App::App()
 
 
 
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < INFLIGHT_FRAMES_AMOUNT; ++i) {
     constants[i] = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
       .size = sizeof(UniformParams),
       .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
@@ -182,7 +182,7 @@ void App::run()
 
 void App::update() {
   ZoneScoped;
-  int params_index = step % 2;
+  int params_index = step % INFLIGHT_FRAMES_AMOUNT;
   uniformParams[params_index].res = glm::vec2{resolution.x, resolution.y};
   uniformParams[params_index].cursor = glm::vec2{osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
   uniformParams[params_index].time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
@@ -192,7 +192,7 @@ void App::update() {
 void App::drawFrame()
 {
   ZoneScoped;
-  int constants_index = step % 2;
+  int constants_index = step % INFLIGHT_FRAMES_AMOUNT;
   // First, get a command buffer to write GPU commands into.
   auto currentCmdBuf = commandManager->acquireNext();
 

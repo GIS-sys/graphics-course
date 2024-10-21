@@ -12,6 +12,8 @@
 #include "wsi/OsWindowingManager.hpp"
 #include "shaders/UniformParams.h"
 
+#define INFLIGHT_FRAMES_AMOUNT 2
+
 
 class App
 {
@@ -42,7 +44,7 @@ private:
   etna::Sampler sampler;
   etna::Sampler computeSampler;
 
-  UniformParams uniformParams[2];
-  etna::Buffer constants[2];
+  UniformParams uniformParams[INFLIGHT_FRAMES_AMOUNT];
+  etna::Buffer constants[INFLIGHT_FRAMES_AMOUNT];
   int step = 0;
 };
