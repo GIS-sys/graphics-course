@@ -5,4 +5,10 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make && ./tasks/inflight_frames/inflight_frames
 ```
 
+Without simulating high load:
+GPU: renderTexture takes 2.3 ms, renderShader takes 2.3ms
+CPU: drawFrame takse 1.98 ms, update takes 0.03 ms
 
+Simulating high load:
+GPU: ???
+CPU: ???

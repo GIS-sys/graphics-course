@@ -172,6 +172,7 @@ void App::update() {
 
 void App::drawFrame()
 {
+  ZoneScoped;
   // First, get a command buffer to write GPU commands into.
   auto currentCmdBuf = commandManager->acquireNext();
 
