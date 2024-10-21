@@ -8,9 +8,9 @@ layout(binding = 1) uniform sampler2D fileTex;
 
 layout(push_constant) uniform params
 {
-  uvec2 iResolution;
-  uvec2 iMouse;
-  float iTime;
+  uvec2 iResolution3;
+  uvec2 iMouse3;
+  double iTime;
 };
 
 
@@ -94,7 +94,7 @@ float opSmoothUnion( float d1, float d2, float k )
 
 float sdCore(vec3 p, vec3 cent)
 {
-    p = rotateAxis(normalize(vec3(1., 1., 1.)), PI * CORE_OMEGA * iTime) * p;
+    p = rotateAxis(normalize(vec3(1., 1., 1.)), PI * CORE_OMEGA * float(iTime)) * p;
     int nucleonCount = 12;
 
     vec3[] nucleons = vec3[] (
@@ -118,12 +118,12 @@ float sdOrbiltals(vec3 p, vec3 cent)
 {
     int electronCount = 6;
     vec3[] electrons = vec3[] (
-    rotateAxis(normalize(vec3(-3., 2., 0.)), PI * ELECTRON_OMEGA * iTime * 1.05) * ELECTRON_OFFSET * normalize(vec3(2., 3., 0.)),
-    rotateAxis(normalize(vec3(3., 2., 0.)), PI * ELECTRON_OMEGA * iTime * 1.07) * ELECTRON_OFFSET * normalize(vec3(-2., 3., 0.)),
-    rotateAxis(normalize(vec3(0., -3., 2.)), PI * ELECTRON_OMEGA * iTime * 1.11) * ELECTRON_OFFSET * normalize(vec3(0., 2., 3.)),
-    rotateAxis(normalize(vec3(0., 3., 2.)), PI * ELECTRON_OMEGA * iTime * 1.13) * ELECTRON_OFFSET * normalize(vec3(0., -2., 3.)),
-    rotateAxis(normalize(vec3(-3., 0., 2.)), PI * ELECTRON_OMEGA * iTime * 1.17) * ELECTRON_OFFSET * normalize(vec3(2., 0., 3.)),
-    rotateAxis(normalize(vec3(3., 0., 2.)), PI * ELECTRON_OMEGA * iTime * 1.19) * ELECTRON_OFFSET * normalize(vec3(-2., 0., 3.))
+    rotateAxis(normalize(vec3(-3., 2., 0.)), PI * ELECTRON_OMEGA * float(iTime) * 1.05) * ELECTRON_OFFSET * normalize(vec3(2., 3., 0.)),
+    rotateAxis(normalize(vec3(3., 2., 0.)), PI * ELECTRON_OMEGA * float(iTime) * 1.07) * ELECTRON_OFFSET * normalize(vec3(-2., 3., 0.)),
+    rotateAxis(normalize(vec3(0., -3., 2.)), PI * ELECTRON_OMEGA * float(iTime) * 1.11) * ELECTRON_OFFSET * normalize(vec3(0., 2., 3.)),
+    rotateAxis(normalize(vec3(0., 3., 2.)), PI * ELECTRON_OMEGA * float(iTime) * 1.13) * ELECTRON_OFFSET * normalize(vec3(0., -2., 3.)),
+    rotateAxis(normalize(vec3(-3., 0., 2.)), PI * ELECTRON_OMEGA * float(iTime) * 1.17) * ELECTRON_OFFSET * normalize(vec3(2., 0., 3.)),
+    rotateAxis(normalize(vec3(3., 0., 2.)), PI * ELECTRON_OMEGA * float(iTime) * 1.19) * ELECTRON_OFFSET * normalize(vec3(-2., 0., 3.))
     );
 
     float res = sdSphere(p - (cent + electrons[0]), ELECTRON_SIZE);
@@ -215,7 +215,7 @@ light(vec3(0., -4., -3.), vec4(0., 1., 1., 1.))
 void main()
 {
     // angle of camera
-    vec2 mouseTheta = PI * (vec2(iMouse).xy * 2. - vec2(iResolution).xy) / iResolution.x;
+    vec2 mouseTheta = PI * (iMouse3.xy * 2. - vec2(iResolution3).xy) / iResolution3.x;
     float phi = mouseTheta.x;
     float theta = mouseTheta.y;
 
@@ -230,7 +230,7 @@ void main()
     float cameraDepth = 1. / tan(radians(mainCam.fov / 2.));
 
     // computing ray direction
-    vec2 uv = (vec2(gl_FragCoord).xy * 2. - vec2(iResolution).xy) / iResolution.x;
+    vec2 uv = (vec2(gl_FragCoord).xy * 2. - vec2(iResolution3).xy) / iResolution3.x;
     vec3 rayDir = normalize(frameCameraDir * cameraDepth + frameCameraRight * uv.x + frameCameraUp * uv.y);
 
 	// vec4 color = textureLod(colorTex, vec2(0.5) + 4.0 * uv, 0).rgba;

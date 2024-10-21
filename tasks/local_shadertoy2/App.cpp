@@ -112,6 +112,7 @@ App::App()
   );
 
 
+  // TODO rework all below this
   int width, height, channels;
   unsigned char* image_data = stbi_load(LOCAL_SHADERTOY2_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png", &width, &height, &channels, 4);
 
@@ -182,9 +183,12 @@ void App::drawFrame()
       etna::set_state(
         currentCmdBuf,
         backbuffer,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageLayout::eColorAttachmentOptimal,
+        // We are going to use the texture at the transfer stage...
+        vk::PipelineStageFlagBits2::eTransfer,
+        // ...to transfer-write stuff into it...
+        vk::AccessFlagBits2::eTransferWrite,
+        // ...and want it to have the appropriate layout.
+        vk::ImageLayout::eTransferDstOptimal,
         vk::ImageAspectFlagBits::eColor);
       // The set_state doesn't actually record any commands, they are deferred to
       // the moment you call flush_barriers.
@@ -196,9 +200,15 @@ void App::drawFrame()
 
       // TODO: Record your commands here!
 
-      // --- Constants ---
-      float time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
+      glm::uvec2 res {resolution.x, resolution.y};
+      glm::uvec2 cursor {osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
+      double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
 
+      Constants constants {
+        .res = res,
+        .cursor = cursor,
+        .time = time,
+      };
 
       // --- Texture ---
       {
@@ -217,16 +227,13 @@ void App::drawFrame()
         currentCmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipelineLayout(),
           0, 1, &vkSet, 0, nullptr);
 
-        struct Params
-        {
-          glm::uvec2 res;
-          float time;
-        };
-        Params param{
-            .res = resolution, 
-            .time = time
-        };
-        currentCmdBuf.pushConstants( computePipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(param), &param);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
+          computePipeline.getVkPipelineLayout(),
+          vk::ShaderStageFlagBits::eCompute,
+          0,
+          sizeof(constants),
+          &constants
+        );
 
         etna::flush_barriers(currentCmdBuf);
 
@@ -266,19 +273,7 @@ void App::drawFrame()
         currentCmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(),
           0, 1, &vkSet, 0, nullptr);
 
-        struct Params
-        {
-          glm::uvec2 res;
-          glm::uvec2 mouse;
-          float time;
-        };
-        Params param
-        {
-          .res = resolution, 
-          .mouse = osWindow->mouse.freePos, 
-          .time = time
-        };
-        currentCmdBuf.pushConstants(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(param), &param);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
         currentCmdBuf.draw(3, 1, 0, 0);
       }

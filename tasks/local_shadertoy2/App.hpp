@@ -14,6 +14,14 @@
 #include <chrono>
 
 
+struct Constants
+{
+  glm::uvec2 res;
+  glm::uvec2 cursor;
+  double time;
+};
+
+
 class App
 {
 public:
