@@ -83,7 +83,7 @@ App::App()
 
   // TODO: Initialize any additional resources you require here!
 
-  etna::create_program("local_shadertoy2_texture", {LOCAL_SHADERTOY2_SHADERS_ROOT "texture.comp.spv"});
+  etna::create_program("local_shadertoy2_texture", {INFLIGHT_FRAMES_SHADERS_ROOT "texture.comp.spv"});
   computePipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy2_texture", {});
   computeImage = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
@@ -96,8 +96,8 @@ App::App()
   etna::create_program(
     "shader",
     {
-      LOCAL_SHADERTOY2_SHADERS_ROOT "toy.vert.spv",
-      LOCAL_SHADERTOY2_SHADERS_ROOT "toy.frag.spv"
+      INFLIGHT_FRAMES_SHADERS_ROOT "toy.vert.spv",
+      INFLIGHT_FRAMES_SHADERS_ROOT "toy.frag.spv"
     }
   );
 
@@ -117,7 +117,7 @@ App::App()
   int height;
   int channels;
   unsigned char* loaded = stbi_load(
-    LOCAL_SHADERTOY2_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
+    INFLIGHT_FRAMES_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
     &width,
     &height,
     &channels,
