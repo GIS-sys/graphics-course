@@ -7,6 +7,7 @@
 #include <etna/RenderTargetStates.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <chrono>
 #include <iostream>
 
@@ -109,6 +110,37 @@ App::App()
           .depthAttachmentFormat = vk::Format::eD32Sfloat,
         },
     }
+  );
+
+
+  int width;
+  int height;
+  int channels;
+  unsigned char* loaded = stbi_load(
+    LOCAL_SHADERTOY2_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
+    &width,
+    &height,
+    &channels,
+    0);
+
+  image = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{(unsigned int)width, (unsigned int)height, 1},
+    .name = "test_tex_1.png",
+    .format = vk::Format::eR8G8B8A8Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst});
+
+  sampler = etna::Sampler(etna::Sampler::CreateInfo{
+    .addressMode = vk::SamplerAddressMode::eRepeat,
+    .name = "sampler"}
+  );
+
+  etna::BlockingTransferHelper(etna::BlockingTransferHelper::CreateInfo{
+      .stagingSize = static_cast<std::uint32_t>(width * height),
+  }).uploadImage(
+    *etna::get_context().createOneShotCmdMgr(),
+    image,
+    0, 0,
+    std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
   );
 }
 
@@ -222,6 +254,35 @@ void App::drawFrame()
         vk::ImageAspectFlagBits::eColor);
 
       etna::flush_barriers(currentCmdBuf);
+
+
+
+      auto simpleMaterialInfo = etna::get_shader_program("shader");
+      auto set2 = etna::create_descriptor_set(
+        simpleMaterialInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
+              etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+              etna::Binding{1,
+                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+
+      etna::RenderTargetState renderTargets{
+        currentCmdBuf,
+        {{0, 0}, {resolution.x, resolution.y}},
+        {{.image = backbuffer, .view = backbufferView}},
+        {}
+      };
+
+      vk::DescriptorSet vkSet2 = set2.getVkSet();
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline.getVkPipelineLayout(),
+        0, 1,
+        &vkSet2,
+        0, 0);
+
+      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
       currentCmdBuf.draw(3, 1, 0, 0);
 

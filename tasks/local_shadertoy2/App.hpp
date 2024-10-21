@@ -47,6 +47,4 @@ private:
   etna::Image computeImage;
   etna::Sampler sampler;
   etna::Sampler computeSampler;
-
-  std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
 };
