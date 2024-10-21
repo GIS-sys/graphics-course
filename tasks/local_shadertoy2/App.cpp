@@ -238,15 +238,19 @@ void App::drawFrame()
       etna::set_state(
         currentCmdBuf,
         computeImage.get(),
-        vk::PipelineStageFlagBits2::eFragmentShader,
-        vk::AccessFlagBits2::eShaderSampledRead,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
+        // We are going to use the texture at the transfer stage...
+        vk::PipelineStageFlagBits2::eTransfer,
+        // ...to transfer-read stuff from it...
+        vk::AccessFlagBits2::eTransferRead,
+        // ...and want it to have the appropriate layout.
+        vk::ImageLayout::eTransferSrcOptimal,
         vk::ImageAspectFlagBits::eColor);
+
       etna::flush_barriers(currentCmdBuf);
 
       // --- Drawing ---
       {
-        etna::RenderTargetState state{currentCmdBuf, {{}, {resolution.x, resolution.y}}, 
+        etna::RenderTargetState state{currentCmdBuf, {{}, {resolution.x, resolution.y}},
             {{backbuffer, backbufferView}}, {}};
 
         auto graphicsInfo = etna::get_shader_program("shader");
