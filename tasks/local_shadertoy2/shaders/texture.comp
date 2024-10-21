@@ -27,7 +27,7 @@ void main()
     vec3 result = vec3(0.0);
     result += vec3(
         abs(sin(uv.x * 20.0)),
-        0.5,
+        abs(sin(float(iTime))),
         abs(sin(uv.y / 5.0))
     );
 

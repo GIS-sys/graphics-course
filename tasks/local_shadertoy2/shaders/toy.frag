@@ -179,13 +179,13 @@ vec3 get_normal(vec3 point) {
 // colors for objects
 
 vec3 col_wall(in vec3 pos) {
-    return vec3(1.0, 1.0, 1.0);
-    //return vec3(texture(colorTex, vec2(remainder(pos.x / 100.0), remainder(pos.z / 100.0))));
+    //return vec3(1.0, 1.0, 1.0);
+    return vec3(texture(colorTex, vec2(remainder(pos.x / 100.0), remainder(pos.z / 100.0))));
 }
 
 vec3 col_road(in vec3 pos) {
-    return vec3(1.0, 1.0, 0.5);
-    //return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
+    //return vec3(1.0, 1.0, 0.5);
+    return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
 }
 
 vec3 col_box(in vec3 pos) {
@@ -207,8 +207,8 @@ vec3 col_box(in vec3 pos) {
     vec3 v_to_pro = pos - CENTER;
     float texture_x = dot(v_to_pro, pro_base_1) / length(pro_base_1) / 4.0;
     float texture_y = dot(v_to_pro, pro_base_2) / length(pro_base_2) / 4.0;
-    return vec3(0.5, 0.0, 0.0);
-    //return vec3(texture(fileTex, vec2(texture_x, texture_y)));
+    //return vec3(0.5, 0.0, 0.0);
+    return vec3(texture(fileTex, vec2(texture_x, texture_y)));
 }
 
 
