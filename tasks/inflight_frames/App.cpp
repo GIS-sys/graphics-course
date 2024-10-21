@@ -121,7 +121,7 @@ App::App()
     &width,
     &height,
     &channels,
-    0);
+    4);
 
   image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{(unsigned int)width, (unsigned int)height, 1},
@@ -140,7 +140,7 @@ App::App()
     *etna::get_context().createOneShotCmdMgr(),
     image,
     0, 0,
-    std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
+    std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * 4)
   );
 }
 
@@ -155,12 +155,19 @@ void App::run()
   {
     windowing.poll();
 
+    update();
     drawFrame();
+
+    FrameMark;
   }
 
   // We need to wait for the GPU to execute the last frame before destroying
   // all resources and closing the application.
   ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
+}
+
+void App::update() {
+    ZoneScoped;
 }
 
 void App::drawFrame()
@@ -221,26 +228,29 @@ void App::drawFrame()
 
       ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
-      auto simpleComputeInfo = etna::get_shader_program("local_shadertoy2_texture");
-      auto set = etna::create_descriptor_set(
-        simpleComputeInfo.getDescriptorLayoutId(0),
-        currentCmdBuf,
-        {
-          etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eGeneral)}
-        });
-      vk::DescriptorSet vkSet = set.getVkSet();
-      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipeline());
-      currentCmdBuf.bindDescriptorSets(
-        vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
-      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
-        computePipeline.getVkPipelineLayout(),
-        vk::ShaderStageFlagBits::eCompute,
-        0,
-        sizeof(constants),
-        &constants
-      );
-      etna::flush_barriers(currentCmdBuf);
-      currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);
+      {
+        ETNA_PROFILE_GPU(currentCmdBuf, renderTexture);
+        auto simpleComputeInfo = etna::get_shader_program("local_shadertoy2_texture");
+        auto set = etna::create_descriptor_set(
+          simpleComputeInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eGeneral)}
+          });
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipeline());
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
+          computePipeline.getVkPipelineLayout(),
+          vk::ShaderStageFlagBits::eCompute,
+          0,
+          sizeof(constants),
+          &constants
+        );
+        etna::flush_barriers(currentCmdBuf);
+        currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);
+      }
 
       etna::set_state(
         currentCmdBuf,
@@ -256,35 +266,37 @@ void App::drawFrame()
       etna::flush_barriers(currentCmdBuf);
 
 
+      {
+        ETNA_PROFILE_GPU(currentCmdBuf, renderShader);
+        auto simpleMaterialInfo = etna::get_shader_program("shader");
+        auto set2 = etna::create_descriptor_set(
+          simpleMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+                etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+                etna::Binding{1,
+                  image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
 
-      auto simpleMaterialInfo = etna::get_shader_program("shader");
-      auto set2 = etna::create_descriptor_set(
-        simpleMaterialInfo.getDescriptorLayoutId(0),
-        currentCmdBuf,
-        {
-              etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-              etna::Binding{1,
-                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+        etna::RenderTargetState renderTargets{
+          currentCmdBuf,
+          {{0, 0}, {resolution.x, resolution.y}},
+          {{.image = backbuffer, .view = backbufferView}},
+          {}
+        };
 
-      etna::RenderTargetState renderTargets{
-        currentCmdBuf,
-        {{0, 0}, {resolution.x, resolution.y}},
-        {{.image = backbuffer, .view = backbufferView}},
-        {}
-      };
+        vk::DescriptorSet vkSet2 = set2.getVkSet();
+        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          pipeline.getVkPipelineLayout(),
+          0, 1,
+          &vkSet2,
+          0, 0);
 
-      vk::DescriptorSet vkSet2 = set2.getVkSet();
-      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
-      currentCmdBuf.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline.getVkPipelineLayout(),
-        0, 1,
-        &vkSet2,
-        0, 0);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
-      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
-
-      currentCmdBuf.draw(3, 1, 0, 0);
+        currentCmdBuf.draw(3, 1, 0, 0);
+      }
 
 
 
@@ -301,6 +313,7 @@ void App::drawFrame()
         vk::ImageAspectFlagBits::eColor);
       // And of course flush the layout transition.
       etna::flush_barriers(currentCmdBuf);
+      ETNA_READ_BACK_GPU_PROFILING(currentCmdBuf);
     }
     ETNA_CHECK_VK_RESULT(currentCmdBuf.end());
 

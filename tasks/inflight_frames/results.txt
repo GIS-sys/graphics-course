@@ -1,0 +1,8 @@
+Step 1
+
+```
+cd build
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make && ./tasks/inflight_frames/inflight_frames
+```
+
+

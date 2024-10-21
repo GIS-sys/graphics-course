@@ -30,6 +30,7 @@ public:
 
 private:
   void drawFrame();
+  void update();
 
 private:
   OsWindowingManager windowing;
