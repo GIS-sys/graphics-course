@@ -248,31 +248,46 @@ void App::drawFrame()
 
       etna::flush_barriers(currentCmdBuf);
 
-      // --- Drawing ---
-      {
-        etna::RenderTargetState state{currentCmdBuf, {{}, {resolution.x, resolution.y}},
-            {{backbuffer, backbufferView}}, {}};
 
-        auto graphicsInfo = etna::get_shader_program("shader");
 
-        auto set = etna::create_descriptor_set(
-          graphicsInfo.getDescriptorLayoutId(0),
-          currentCmdBuf,
-          {
-                etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-                etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
-          });
+      // TODO block below
+      auto simpleMaterialInfo = etna::get_shader_program("shader");
+      auto set2 = etna::create_descriptor_set(
+        simpleMaterialInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
+              etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+              etna::Binding{1,
+                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
 
-        vk::DescriptorSet vkSet = set.getVkSet();
+      etna::RenderTargetState renderTargets{
+        currentCmdBuf,
+        {{0, 0}, {resolution.x, resolution.y}},
+        {{backbuffer, backbufferView}}, {} // TODO
+      };
 
-        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
-        currentCmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(),
-          0, 1, &vkSet, 0, nullptr);
+      vk::DescriptorSet vkSet2 = set2.getVkSet();
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
+      /*currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline.getVkPipelineLayout(),
+        0,
+        1,
+        &vkSet2,
+        0,
+        nullptr);*/
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline.getVkPipelineLayout(),
+        0, 1,
+        &vkSet2,
+        0, 0);
 
-        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
-        currentCmdBuf.draw(3, 1, 0, 0);
-      }
+      currentCmdBuf.draw(3, 1, 0, 0);
+
+
 
       // At the end of "rendering", we are required to change how the pixels of the
       // swpchain image are laid out in memory to something that is appropriate
