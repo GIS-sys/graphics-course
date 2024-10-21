@@ -13,14 +13,6 @@ layout(binding = 1, set = 0) uniform AppData
 };
 
 
-//layout(push_constant) uniform params
-//{
-//  uvec2 iResolution;
-//  uvec2 iMouse;
-//  double iTime;
-//};
-
-
 
 float PI = 3.14159265358979323846;
 

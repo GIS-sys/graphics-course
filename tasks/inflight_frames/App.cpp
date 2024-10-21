@@ -234,7 +234,6 @@ void App::drawFrame()
       {
         ETNA_PROFILE_GPU(currentCmdBuf, renderTexture);
         auto simpleComputeInfo = etna::get_shader_program("local_shadertoy2_texture");
-        std::cout << "!!! before set 0" << std::endl;
         auto set = etna::create_descriptor_set(
           simpleComputeInfo.getDescriptorLayoutId(0),
           currentCmdBuf,
@@ -242,7 +241,6 @@ void App::drawFrame()
             etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eGeneral)},
             etna::Binding{1, constants.genBinding()}
           });
-        std::cout << "!!! after set 1" << std::endl;
         vk::DescriptorSet vkSet = set.getVkSet();
         currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipeline());
         currentCmdBuf.bindDescriptorSets(
