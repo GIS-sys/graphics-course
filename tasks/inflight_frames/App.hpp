@@ -10,14 +10,7 @@
 #include <etna/Sampler.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
-
-
-struct Constants
-{
-  glm::uvec2 res;
-  glm::uvec2 cursor;
-  double time;
-};
+#include "shaders/UniformParams.h"
 
 
 class App
@@ -48,4 +41,11 @@ private:
   etna::Image computeImage;
   etna::Sampler sampler;
   etna::Sampler computeSampler;
+
+  UniformParams uniformParams{
+    .res = {},
+    .cursor = {},
+    .time = {},
+  };
+  etna::Buffer constants;
 };

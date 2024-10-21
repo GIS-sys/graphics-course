@@ -1,15 +1,24 @@
 #version 430
+#extension GL_GOOGLE_include_directive : require
+
+#include "UniformParams.h"
+
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
-
-layout(push_constant) uniform params
+layout(binding = 1, set = 0) uniform AppData
 {
-  uvec2 iResolution;
-  uvec2 iMouse;
-  double iTime;
+  UniformParams params;
 };
+
+
+//layout(push_constant) uniform params
+//{
+//  uvec2 iResolution;
+//  uvec2 iMouse;
+//  double iTime;
+//};
 
 
 
@@ -20,14 +29,14 @@ float PI = 3.14159265358979323846;
 void main()
 {
     ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
-    //vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;
-    vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
-    uv.x *= iResolution.x / iResolution.y;
+    //vec2 uv = (fragCoord - 0.5 * params.res.xy) / params.res.y;
+    vec2 uv = fragCoord / params.res.xy * 2.0 - 1.0;
+    uv.x *= params.res.x / params.res.y;
 
     vec3 result = vec3(0.0);
     result += vec3(
         abs(sin(uv.x * 20.0)),
-        abs(sin(float(iTime))),
+        abs(sin(float(params.time))),
         abs(sin(uv.y / 5.0))
     );
 
