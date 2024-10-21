@@ -4,6 +4,8 @@
 
 #include "UniformParams.h"
 
+#define PROCEDURAL_OBJECTS_AMOUNT 30
+
 
 //layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -128,7 +130,7 @@ float sdf_ball(in vec3 pos) {
 float sdf_melon(in vec3 pos) {
     vec3 CENTER = vec3(-15, -5, 15);
     float RADIUS = 5.0;
-    return sdf_sphere(pos, CENTER, RADIUS) + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
+    return sdf_sphere(pos, CENTER, RADIUS);// + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
 }
 
 float sdf_box(in vec3 pos) {
@@ -150,10 +152,17 @@ float sdf_cheese(in vec3 pos) {
     return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
 }
 
+float sdf_procedural_balls(in vec3 pos, int i) {
+    return sdf_sphere(pos, vec3(-i, -i, -i), abs(sin(params.time)));
+}
+
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    float result = mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    for (int i = 0; i < PROCEDURAL_OBJECTS_AMOUNT; ++i)
+        result = min(result, sdf_procedural_balls(pos, i));
+    return result;
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -256,14 +265,15 @@ vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
 vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
-    float MIN_STEP = 0.0000003;
+    float MIN_STEP = 0.0001;
     hit = true;
     vec3 ray_step = ray / length(ray);
     for (int i = 0; i < 500; ++i) {
         float step_size = sdf(position);
 
-        if (step_size < 0.0) break;
+        //if (step_size < 0.0) break;
         if (step_size < MIN_STEP) return position;
+        //if (step_size < 0.0) return position;
         if (step_size > MAX_STEP) break;
 
         position += step_size * ray_step * SDF_STEP;
