@@ -42,10 +42,7 @@ private:
   etna::Sampler sampler;
   etna::Sampler computeSampler;
 
-  UniformParams uniformParams{
-    .res = {},
-    .cursor = {},
-    .time = {},
-  };
-  etna::Buffer constants;
+  UniformParams uniformParams[2];
+  etna::Buffer constants[2];
+  int step = 0;
 };
