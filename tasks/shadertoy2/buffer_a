@@ -1,0 +1,17 @@
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    //vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;
+    vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
+    uv.x *= iResolution.x / iResolution.y;
+
+    vec3 result = vec3(0.0);
+    result += vec3(
+        abs(sin(uv.x * 20.0)),
+        0.5,
+        abs(sin(uv.y / 5.0))
+    );
+    
+    
+    result = normalize(result);
+    fragColor = vec4(result, 0.0);
+}
