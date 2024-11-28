@@ -77,8 +77,9 @@ App::App()
 
 
   // TODO: Initialize any additional resources you require here!
-  etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY_SHADERS_ROOT "toy.comp.spv"});
+  etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
   pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
+  sampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "todo"});
   toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
     .name = "toy_map",
@@ -150,13 +151,13 @@ void App::drawFrame()
 
 
       // TODO: Record your commands here!
-      ETNA_PROFILE_GPU(currentCmdBuf, renderToyShader);
-      auto simpleComputeInfo = etna::get_shader_program("local_shadertoy1_compute");
+      //ETNA_PROFILE_GPU(currentCmdBuf, renderToyShader);
+      //auto simpleComputeInfo = etna::get_shader_program("local_shadertoy1_compute");
       auto set = etna::create_descriptor_set(
-        simpleComputeInfo.getDescriptorLayoutId(0),
+        etna::get_shader_program("local_shadertoy1_compute").getDescriptorLayoutId(0),
         currentCmdBuf,
         {
-          etna::Binding{0, toyMap.genBinding(defaultSampler.get(), vk::ImageLayout::eGeneral)}
+          etna::Binding{0, toyMap.genBinding(sampler.get(), vk::ImageLayout::eGeneral)}
         });
       vk::DescriptorSet vkSet = set.getVkSet();
       currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
@@ -164,13 +165,13 @@ void App::drawFrame()
         vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
 
       // fixing write after write
-      //etna::set_state(
-      //  currentCmdBuf,
-      //  toyMap.get(),
-      //  vk::PipelineStageFlagBits2::eComputeShader,
-      //  vk::AccessFlagBits2::eShaderWrite,
-      //  vk::ImageLayout::eGeneral,
-      //  vk::ImageAspectFlagBits::eColor);
+      etna::set_state(
+        currentCmdBuf,
+        toyMap.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor);
 
       etna::flush_barriers(currentCmdBuf);
       currentCmdBuf.dispatch((resolution.x + 15) / 16, (resolution.y + 15) / 16, 1);
@@ -181,9 +182,9 @@ void App::drawFrame()
         // We are going to use the texture at the transfer stage...
         vk::PipelineStageFlagBits2::eTransfer,
         // ...to transfer-read stuff from it...
-        vk::AccessFlagBits2::eTransferRead,
+        vk::AccessFlagBits2::eTransferWrite,
         // ...and want it to have the appropriate layout.
-        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageLayout::eTransferDstOptimal,
         vk::ImageAspectFlagBits::eColor);
 
       etna::flush_barriers(currentCmdBuf);

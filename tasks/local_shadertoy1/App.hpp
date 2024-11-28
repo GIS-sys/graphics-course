@@ -36,4 +36,5 @@ private:
   etna::Image toyMap;
   std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
   etna::Sampler defaultSampler;
+  etna::Sampler sampler;
 };
