@@ -203,7 +203,6 @@ void App::drawFrame()
           }
         },
         vk::Filter::eNearest);
-      etna::flush_barriers(currentCmdBuf);
  
 
 
