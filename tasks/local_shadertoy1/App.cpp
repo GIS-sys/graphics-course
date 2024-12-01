@@ -77,7 +77,7 @@ App::App()
 
 
   // TODO: Initialize any additional resources you require here!
-  etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY_SHADERS_ROOT "toy.comp.spv"});
+  etna::create_program("local_shadertoy1_compute", {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
   pipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1_compute", {});
   toyMap = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
@@ -146,6 +146,14 @@ void App::drawFrame()
       // As with set_state, Etna sometimes flushes on it's own.
       // Usually, flushes should be placed before "action", i.e. compute dispatches
       // and blit/copy operations.
+      etna::set_state(
+        currentCmdBuf,
+        toyMap.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor);
+
       etna::flush_barriers(currentCmdBuf);
 
 
