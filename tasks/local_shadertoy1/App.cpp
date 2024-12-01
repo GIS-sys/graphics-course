@@ -170,16 +170,6 @@ void App::drawFrame()
       currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
       currentCmdBuf.bindDescriptorSets(
         vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
-
-      // fixing write after write
-      //etna::set_state(
-      //  currentCmdBuf,
-      //  toyMap.get(),
-      //  vk::PipelineStageFlagBits2::eComputeShader,
-      //  vk::AccessFlagBits2::eShaderWrite,
-      //  vk::ImageLayout::eGeneral,
-      //  vk::ImageAspectFlagBits::eColor);
-
       etna::flush_barriers(currentCmdBuf);
       currentCmdBuf.dispatch((resolution.x + 15) / 16, (resolution.y + 15) / 16, 1);
 
