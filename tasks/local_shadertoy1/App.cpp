@@ -147,6 +147,15 @@ void App::drawFrame()
       // As with set_state, Etna sometimes flushes on it's own.
       // Usually, flushes should be placed before "action", i.e. compute dispatches
       // and blit/copy operations.
+      //
+      etna::set_state(
+        currentCmdBuf,
+        toyMap.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor);
+
       etna::flush_barriers(currentCmdBuf);
 
 
@@ -188,7 +197,7 @@ void App::drawFrame()
         vk::ImageAspectFlagBits::eColor);
 
       etna::flush_barriers(currentCmdBuf);
-      currentCmdBuf.blitImage(
+      /*currentCmdBuf.blitImage(
         toyMap.get(),
         vk::ImageLayout::eTransferSrcOptimal,
         backbuffer,
@@ -205,7 +214,47 @@ void App::drawFrame()
             vk::Offset3D{.x =static_cast<int32_t>(resolution.x), .y=static_cast<int32_t>(resolution.y), .z = 1}
           }
         },
-        vk::Filter::eNearest);
+        vk::Filter::eNearest);*/
+      std::array srcOffset = {
+          vk::Offset3D{},
+          vk::Offset3D{static_cast<int32_t>(resolution.x), static_cast<int32_t>(resolution.y), 1}
+      };
+      std::array dstOffset = {
+        vk::Offset3D{},
+        vk::Offset3D{static_cast<int32_t>(resolution.x), static_cast<int32_t>(resolution.y), 1}
+      };
+      
+      auto srcImageSubrecourceLayers = vk::ImageSubresourceLayers{
+        .aspectMask = vk::ImageAspectFlagBits::eColor,
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1};
+      auto dstImageSubrecourceLayers = vk::ImageSubresourceLayers{
+        .aspectMask = vk::ImageAspectFlagBits::eColor,
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1};
+
+      auto pRegions = vk::ImageBlit2{
+        .sType = vk::StructureType::eImageBlit2,
+        .pNext = nullptr,
+        .srcSubresource = srcImageSubrecourceLayers,
+        .srcOffsets = srcOffset,
+        .dstSubresource = dstImageSubrecourceLayers,
+        .dstOffsets = dstOffset
+      };
+      currentCmdBuf.blitImage2(vk::BlitImageInfo2{
+        .sType = vk::StructureType::eBlitImageInfo2,
+        .pNext = nullptr,
+        .srcImage = toyMap.get(),
+        .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
+        .dstImage = backbuffer,
+        .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
+        .regionCount = 1,
+        .pRegions = &pRegions,
+        .filter = vk::Filter::eLinear
+      });
+
       etna::flush_barriers(currentCmdBuf);
  
 
