@@ -88,10 +88,12 @@ App::App()
   computeImage = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
     .name = "local_shadertoy2_image",
-    .format = vk::Format::eR8G8B8A8Unorm,
-    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+    //.format = vk::Format::eR8G8B8A8Unorm,
+    //.imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+    .format = vkWindow->getCurrentFormat(),//vk::Format::eB8G8R8A8Srgb,
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc, // | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage //VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
   });
-  computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "computeSampler"});
+  computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.addressMode = vk::SamplerAddressMode::eMirroredRepeat, .name = "computeSampler"});
 
   etna::create_program(
     "shader",
@@ -106,8 +108,8 @@ App::App()
     etna::GraphicsPipeline::CreateInfo{
       .fragmentShaderOutput =
         {
-          .colorAttachmentFormats = {vk::Format::eB8G8R8A8Srgb},
-          .depthAttachmentFormat = vk::Format::eD32Sfloat,
+          .colorAttachmentFormats = {vkWindow->getCurrentFormat()}, //{vk::Format::eB8G8R8A8Srgb},
+          //.depthAttachmentFormat = vk::Format::eD32Sfloat,
         },
     }
   );
@@ -121,19 +123,19 @@ App::App()
     &width,
     &height,
     &channels,
-    0);
+    STBI_rgb_alpha);
+  channels = 4; // because we are using STBI flag
 
   image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{(unsigned int)width, (unsigned int)height, 1},
     .name = "test_tex_1.png",
-    .format = vk::Format::eR8G8B8A8Unorm,
-    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst});
+    .format = vkWindow->getCurrentFormat(), //vk::Format::eR8G8B8A8Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst});// vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst});
 
   sampler = etna::Sampler(etna::Sampler::CreateInfo{
     .addressMode = vk::SamplerAddressMode::eRepeat,
     .name = "sampler"}
   );
-
   etna::BlockingTransferHelper(etna::BlockingTransferHelper::CreateInfo{
       .stagingSize = static_cast<std::uint32_t>(width * height),
   }).uploadImage(
