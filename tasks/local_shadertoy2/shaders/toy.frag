@@ -127,9 +127,8 @@ const float brightness = 3.0;
 
 void main()
 {
-  vec2 iResolution = vec2(params.iResolution_x, params.iResolution_y);
-  vec2 iMouse = vec2(params.iMouse_x, params.iMouse_y);
-
+  vec2 iResolution = params.iResolution;
+  vec2 iMouse = params.iMouse;
   bool hit;
   vec3 mouse = vec3(iMouse.xy/iResolution.xy - 0.5, 0.0);
   mat3 rotate = rotateX(mouse.y * 6.0) * rotateY(-mouse.x * 6.0 + 1.5) * rotateZ(acos(-1.0));
