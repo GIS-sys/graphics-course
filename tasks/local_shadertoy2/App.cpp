@@ -313,6 +313,7 @@ void App::drawFrame()
 
 
 
+      {
       auto simpleMaterialInfo = etna::get_shader_program("shader");
       auto set2 = etna::create_descriptor_set(
         simpleMaterialInfo.getDescriptorLayoutId(0),
@@ -341,6 +342,7 @@ void App::drawFrame()
       currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
       currentCmdBuf.draw(3, 1, 0, 0);
+      }
 
 
 

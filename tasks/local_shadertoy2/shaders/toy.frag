@@ -129,10 +129,15 @@ void main()
 {
   vec2 iResolution = params.iResolution;
   vec2 iMouse = params.iMouse;
+  iResolution = vec2(1280, 720);
+  iMouse = vec2(5.0, 6.0);
   bool hit;
   vec3 mouse = vec3(iMouse.xy/iResolution.xy - 0.5, 0.0);
   mat3 rotate = rotateX(mouse.y * 6.0) * rotateY(-mouse.x * 6.0 + 1.5) * rotateZ(acos(-1.0));
   vec2 uv = (gl_FragCoord.xy/iResolution.xy - vec2(0.5)) * 20.0 * iResolution.xy / max(iResolution.x, iResolution.y);
+
+  //vec3 color = texture(texture_image, uv.xy).rgb;
+
   vec3 wDir = normalize(vec3(uv, 0) - eye);
   vec3 wP = trace(eye, wDir, hit, rotate);
   vec3 cP = wP * rotate;
