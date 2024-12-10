@@ -9,12 +9,8 @@ layout(binding = 1) uniform sampler2D texture_image;
 layout(location = 0) out vec4 out_fragColor;
 
 layout(push_constant) uniform Params {
-  // vec2 iResolution;
-  float iResolution_x;
-  float iResolution_y;
-  // vec2 iMouse;
-  float iMouse_x;
-  float iMouse_y;
+  vec2 iResolution;
+  vec2 iMouse;
   float iTime;
 } params;
 
