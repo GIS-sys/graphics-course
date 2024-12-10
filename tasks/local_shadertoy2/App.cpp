@@ -125,27 +125,14 @@ App::App()
   );
 
 
-  int width;
-  int height;
-  int channels;
-  unsigned char* loaded = stbi_load(
-    LOCAL_SHADERTOY2_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
-    &width,
-    &height,
-    &channels,
-    STBI_rgb_alpha);
-  channels = 4; // because we are using STBI flag
-
+  // TODO
+  /*
   image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{(unsigned int)width, (unsigned int)height, 1},
     .name = "test_tex_1.png",
     .format = vkWindow->getCurrentFormat(), //vk::Format::eR8G8B8A8Unorm,
     .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment| vk::ImageUsageFlagBits::eTransferDst }); //});// vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst});
 
-  /*sampler = etna::Sampler(etna::Sampler::CreateInfo{
-    .addressMode = vk::SamplerAddressMode::eRepeat,
-    .name = "sampler"}
-  );*/
   etna::BlockingTransferHelper(etna::BlockingTransferHelper::CreateInfo{
       .stagingSize = static_cast<std::uint32_t>(width * height),
   }).uploadImage(
@@ -153,7 +140,7 @@ App::App()
     image,
     0, 0,
     std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
-  );
+  );*/
 }
 
 App::~App()
@@ -179,6 +166,28 @@ void App::drawFrame()
 {
   // First, get a command buffer to write GPU commands into.
   auto currentCmdBuf = commandManager->acquireNext();
+
+
+  int width;
+  int height;
+  int channels;
+  unsigned char* loaded = stbi_load(
+    LOCAL_SHADERTOY2_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
+    &width,
+    &height,
+    &channels,
+    STBI_rgb_alpha);
+  channels = 4; // because we are using STBI flag
+
+  // TODO
+  image = etna::create_image_from_bytes(etna::Image::CreateInfo {
+    .extent = vk::Extent3D{uint32_t(width), uint32_t(height), 1},
+    .name = "textureImage",
+    .format = vkWindow->getCurrentFormat(),
+    .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
+  }, currentCmdBuf, loaded);
+
+// TODO ^
 
   // Next, tell Etna that we are going to start processing the next frame.
   etna::begin_frame();
