@@ -120,6 +120,7 @@ App::App()
     }
   );
 
+
   int width;
   int height;
   int channels;
@@ -131,12 +132,16 @@ App::App()
     STBI_rgb_alpha);
   channels = 4; // because we are using STBI flag
 
-  // TODO
   image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{(unsigned int)width, (unsigned int)height, 1},
     .name = "test_tex_1.png",
     .format = vkWindow->getCurrentFormat(), //vk::Format::eR8G8B8A8Unorm,
-    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment| vk::ImageUsageFlagBits::eTransferDst }); //});// vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst});
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst});
+
+  sampler = etna::Sampler(etna::Sampler::CreateInfo{
+    .addressMode = vk::SamplerAddressMode::eRepeat,
+    .name = "sampler"}
+  );
 
   etna::BlockingTransferHelper(etna::BlockingTransferHelper::CreateInfo{
       .stagingSize = static_cast<std::uint32_t>(width * height),
@@ -201,7 +206,6 @@ void App::drawFrame()
         // ...and want it to have the appropriate layout.
         vk::ImageLayout::eTransferDstOptimal,
         vk::ImageAspectFlagBits::eColor);
-      // TODO
       // The set_state doesn't actually record any commands, they are deferred to
       // the moment you call flush_barriers.
       // As with set_state, Etna sometimes flushes on it's own.
