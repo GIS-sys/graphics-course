@@ -1,10 +1,10 @@
 #version 430
-#extension GL_GOOGLE_include_directive : require
-#include "cpp_glsl_compat.h"
 
 layout(location = 0) out vec4 out_fragColor;
 
+float PI = 3.14159265358979323846;
+
 void main()
 {
-  out_fragColor = vec4(0.5, 0.5, 0.5, 1.0);
+    out_fragColor = vec4(0.5, 0.5, 0.2, 1.0);
 }

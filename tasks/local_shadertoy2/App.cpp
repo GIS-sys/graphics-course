@@ -251,7 +251,7 @@ void App::drawFrame()
       Constants constants {
         .res = res,
         .cursor = cursor,
-        .time = time,
+        .time = (float)time,
       };
 
 
