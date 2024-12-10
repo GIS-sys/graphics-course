@@ -81,7 +81,6 @@ App::App()
   commandManager = etna::get_context().createPerFrameCmdMgr();
 
 
-  std::cout << "84" << std::endl;
   // TODO: Initialize any additional resources you require here!
   etna::create_program("local_shadertoy2_texture",
     {
@@ -89,7 +88,6 @@ App::App()
       LOCAL_SHADERTOY2_SHADERS_ROOT "texture.frag.spv",
     }
   );
-  std::cout << "92" << std::endl;
   computePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("local_shadertoy2_texture", etna::GraphicsPipeline::CreateInfo {
       .fragmentShaderOutput = {
         .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
@@ -98,10 +96,8 @@ App::App()
   computeImage = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
     .name = "local_shadertoy2_image",
-    //.format = vk::Format::eR8G8B8A8Unorm,
-    //.imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
     .format = vkWindow->getCurrentFormat(),//vk::Format::eB8G8R8A8Srgb,
-    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment, // | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage //VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment,
   });
   computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.addressMode = vk::SamplerAddressMode::eMirroredRepeat, .name = "computeSampler"});
 
@@ -195,7 +191,7 @@ void App::drawFrame()
       // is considered to be "undefined" (aka "I contain trash memory"), by the way.
       // "Transfer" in vulkanese means "copy or blit".
       // Note that Etna sometimes calls this for you to make life simpler, read Etna's code!
-      /*etna::set_state(
+      etna::set_state(
         currentCmdBuf,
         backbuffer,
         // We are going to use the texture at the transfer stage...
@@ -204,28 +200,13 @@ void App::drawFrame()
         vk::AccessFlagBits2::eTransferWrite,
         // ...and want it to have the appropriate layout.
         vk::ImageLayout::eTransferDstOptimal,
-        vk::ImageAspectFlagBits::eColor);*/
+        vk::ImageAspectFlagBits::eColor);
       // TODO
       // The set_state doesn't actually record any commands, they are deferred to
       // the moment you call flush_barriers.
       // As with set_state, Etna sometimes flushes on it's own.
       // Usually, flushes should be placed before "action", i.e. compute dispatches
       // and blit/copy operations.
-      // TODO v
-      etna::set_state(
-        currentCmdBuf,
-        backbuffer,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageAspectFlagBits::eColor);
-      etna::set_state(
-        currentCmdBuf,
-        image.get(),
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageAspectFlagBits::eColor);
       etna::flush_barriers(currentCmdBuf);
 
 
