@@ -42,7 +42,7 @@ private:
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
   etna::GraphicsPipeline pipeline;
-  etna::ComputePipeline computePipeline;
+  etna::GraphicsPipeline computePipeline;
   etna::Image image;
   etna::Image computeImage;
   etna::Sampler sampler;
