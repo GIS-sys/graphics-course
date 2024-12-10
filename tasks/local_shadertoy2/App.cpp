@@ -224,6 +224,21 @@ void App::drawFrame()
       // As with set_state, Etna sometimes flushes on it's own.
       // Usually, flushes should be placed before "action", i.e. compute dispatches
       // and blit/copy operations.
+      // TODO v
+      etna::set_state(
+        currentCmdBuf,
+        backbuffer,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageAspectFlagBits::eColor);
+      etna::set_state(
+        currentCmdBuf,
+        image.get(),
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageAspectFlagBits::eColor);
       etna::flush_barriers(currentCmdBuf);
 
 
@@ -243,25 +258,6 @@ void App::drawFrame()
 
       ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
-
-      // TODO v
-      etna::set_state(
-        currentCmdBuf,
-        backbuffer,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageAspectFlagBits::eColor);
-      etna::set_state(
-        currentCmdBuf,
-        image.get(),
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageAspectFlagBits::eColor);
-      etna::flush_barriers(currentCmdBuf);
-
-
       //auto simpleComputeInfo = etna::get_shader_program("local_shadertoy2_texture");
       /*auto set = etna::create_descriptor_set(
         simpleComputeInfo.getDescriptorLayoutId(0),
@@ -273,7 +269,7 @@ void App::drawFrame()
       //vk::DescriptorSet vkSet = set.getVkSet();
       // TODO
       {
-        etna::RenderTargetState state{currentCmdBuf, {{}, {256, 256}}, {{image.get(), image.getView({})}}, {}};
+        etna::RenderTargetState state{currentCmdBuf, {{}, {128, 128}}, {{image.get(), image.getView({})}}, {}};
         etna::get_shader_program("local_shadertoy2_texture");
 
         currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, computePipeline.getVkPipeline());
