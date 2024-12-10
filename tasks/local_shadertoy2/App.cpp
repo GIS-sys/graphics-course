@@ -142,7 +142,6 @@ App::App()
     .addressMode = vk::SamplerAddressMode::eRepeat,
     .name = "sampler"}
   );
-
   etna::BlockingTransferHelper(etna::BlockingTransferHelper::CreateInfo{
       .stagingSize = static_cast<std::uint32_t>(width * height),
   }).uploadImage(
@@ -230,16 +229,6 @@ void App::drawFrame()
 
       ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
-      //auto simpleComputeInfo = etna::get_shader_program("local_shadertoy2_texture");
-      /*auto set = etna::create_descriptor_set(
-        simpleComputeInfo.getDescriptorLayoutId(0),
-        currentCmdBuf,
-        {
-          etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-          etna::Binding{1, image.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-        });*/
-      //vk::DescriptorSet vkSet = set.getVkSet();
-      // TODO
       {
         etna::RenderTargetState state{currentCmdBuf, {{}, {128, 128}}, {{image.get(), image.getView({})}}, {}};
         etna::get_shader_program("local_shadertoy2_texture");
@@ -249,17 +238,7 @@ void App::drawFrame()
         //  vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
         currentCmdBuf.draw(3, 1, 0, 0);
       }
-      /*currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
-        computePipeline.getVkPipelineLayout(),
-        vk::ShaderStageFlagBits::eCompute,
-        0,
-        sizeof(constants),
-        &constants
-      );
-      etna::flush_barriers(currentCmdBuf);
-      currentCmdBuf.dispatch((resolution.x + 31) / 16, (resolution.y + 31) / 16, 1);*/
 
-      // TODO v
       etna::set_state(
         currentCmdBuf,
         computeImage.get(),
@@ -293,7 +272,7 @@ void App::drawFrame()
         {
               etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
               etna::Binding{1,
-                image.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
 
       etna::RenderTargetState renderTargets{
         currentCmdBuf,
