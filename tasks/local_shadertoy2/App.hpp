@@ -2,7 +2,7 @@
 
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
-#include <etna/ComputePipeline.hpp>
+//#include <etna/ComputePipeline.hpp>
 #include <etna/GraphicsPipeline.hpp>
 #include <etna/Image.hpp>
 #include <etna/GlobalContext.hpp>
