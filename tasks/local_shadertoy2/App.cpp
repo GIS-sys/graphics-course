@@ -82,7 +82,6 @@ App::App()
 
 
   // TODO: Initialize any additional resources you require here!
-
   etna::create_program("local_shadertoy2_texture", {LOCAL_SHADERTOY2_SHADERS_ROOT "texture.comp.spv"});
   computePipeline = etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy2_texture", {});
   computeImage = etna::get_context().createImage(etna::Image::CreateInfo{
