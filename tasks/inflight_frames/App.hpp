@@ -2,7 +2,7 @@
 
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
-#include <etna/ComputePipeline.hpp>
+//#include <etna/ComputePipeline.hpp>
 #include <etna/GraphicsPipeline.hpp>
 #include <etna/Image.hpp>
 #include <etna/GlobalContext.hpp>
@@ -15,6 +15,14 @@
 #define INFLIGHT_FRAMES_AMOUNT 2
 
 
+struct Constants
+{
+  glm::uvec2 res;
+  glm::uvec2 cursor;
+  float time;
+};
+
+
 class App
 {
 public:
@@ -25,7 +33,6 @@ public:
 
 private:
   void drawFrame();
-  void update();
 
 private:
   OsWindowingManager windowing;
@@ -38,7 +45,7 @@ private:
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
   etna::GraphicsPipeline pipeline;
-  etna::ComputePipeline computePipeline;
+  etna::GraphicsPipeline computePipeline;
   etna::Image image;
   etna::Image computeImage;
   etna::Sampler sampler;

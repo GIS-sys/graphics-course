@@ -1,22 +1,20 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-#extension GL_GOOGLE_include_directive : require
-
-#include "UniformParams.h"
-
-#define PROCEDURAL_OBJECTS_AMOUNT 30
-
 
 //layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(location = 0) out vec4 fragColor;
 
+layout(push_constant) uniform params
+{
+  uvec2 iResolution;
+  uvec2 iMouse;
+  float iTime;
+};
+
 layout(binding = 0) uniform sampler2D colorTex;
 layout(binding = 1) uniform sampler2D fileTex;
-layout(binding = 2, set = 0) uniform AppData
-{
-  UniformParams params;
-};
+
 
 
 
@@ -130,7 +128,7 @@ float sdf_ball(in vec3 pos) {
 float sdf_melon(in vec3 pos) {
     vec3 CENTER = vec3(-15, -5, 15);
     float RADIUS = 5.0;
-    return sdf_sphere(pos, CENTER, RADIUS);// + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
+    return sdf_sphere(pos, CENTER, RADIUS) + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
 }
 
 float sdf_box(in vec3 pos) {
@@ -152,17 +150,10 @@ float sdf_cheese(in vec3 pos) {
     return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
 }
 
-float sdf_procedural_balls(in vec3 pos, int i) {
-    return sdf_sphere(pos, vec3(-i, -i, -i), abs(sin(params.time)));
-}
-
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    float result = mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
-    for (int i = 0; i < PROCEDURAL_OBJECTS_AMOUNT; ++i)
-        result = min(result, sdf_procedural_balls(pos, i));
-    return result;
+    return mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -265,15 +256,14 @@ vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
 vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
-    float MIN_STEP = 0.0001;
+    float MIN_STEP = 0.00001;
     hit = true;
     vec3 ray_step = ray / length(ray);
     for (int i = 0; i < 500; ++i) {
         float step_size = sdf(position);
 
-        //if (step_size < 0.0) break;
+        if (step_size < 0.0) break;
         if (step_size < MIN_STEP) return position;
-        //if (step_size < 0.0) return position;
         if (step_size > MAX_STEP) break;
 
         position += step_size * ray_step * SDF_STEP;
@@ -334,12 +324,12 @@ void main()
     vec2 fragCoord = gl_FragCoord.xy;
 
     // position
-    vec2 mouse = params.cursor.xy * 1.0f / params.res.xy - vec2(0.0, 0.5);
+    vec2 mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
     vec3 position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
     //position *= 0.0;
     // ray
-    vec2 uv = fragCoord / params.res.xy * 2.0 - 1.0;
-    uv.x *= params.res.x / params.res.y;
+    vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
+    uv.x *= iResolution.x / iResolution.y;
     vec3 ray = vec3(uv[0], uv[1], 1.0);
     ray /= length(ray);
     mat3 camera = mat3(

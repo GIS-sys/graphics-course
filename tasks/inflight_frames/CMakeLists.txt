@@ -10,6 +10,6 @@ target_link_libraries(inflight_frames
 target_add_shaders(inflight_frames
   shaders/toy.frag
   shaders/toy.vert
-  shaders/texture.comp
+  shaders/texture.frag
 )
 
