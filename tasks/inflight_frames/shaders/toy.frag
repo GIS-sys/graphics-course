@@ -15,7 +15,7 @@ layout(binding = 2, set = 0) uniform AppData
   UniformParams params;
 };
 
-#define PROCEDURAL_OBJECTS_AMOUNT 100
+#define PROCEDURAL_OBJECTS_AMOUNT 30
 
 
 
