@@ -15,14 +15,6 @@
 #define INFLIGHT_FRAMES_AMOUNT 2
 
 
-struct Constants
-{
-  glm::uvec2 res;
-  glm::uvec2 cursor;
-  float time;
-};
-
-
 class App
 {
 public:
@@ -33,6 +25,7 @@ public:
 
 private:
   void drawFrame();
+  void update();
 
 private:
   OsWindowingManager windowing;

@@ -14,7 +14,7 @@
 
 App::App()
   : resolution{1280, 720}
-  , useVsync{true}
+  , useVsync{false}
 {
   // First, we need to initialize Vulkan, which is not trivial because
   // extensions are required for just about anything.
@@ -42,7 +42,7 @@ App::App()
       .deviceExtensions = deviceExtensions,
       // Replace with an index if etna detects your preferred GPU incorrectly
       .physicalDeviceIndexOverride = {},
-      .numFramesInFlight = 1,
+      .numFramesInFlight = INFLIGHT_FRAMES_AMOUNT,
     });
   }
 
@@ -150,6 +150,17 @@ App::App()
     0, 0,
     std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
   );
+
+  for (int i = 0; i < INFLIGHT_FRAMES_AMOUNT; ++i) {
+    constants[i] = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
+      .size = sizeof(UniformParams),
+      .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
+      .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY,
+      .name = "constants",
+    });
+    constants[i].map();
+  }
+
 }
 
 App::~App()
@@ -163,7 +174,12 @@ void App::run()
   {
     windowing.poll();
 
+    ++step;
+    update();
+
     drawFrame();
+
+    FrameMark;
   }
 
   // We need to wait for the GPU to execute the last frame before destroying
@@ -171,8 +187,19 @@ void App::run()
   ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
 }
 
+void App::update() {
+  ZoneScoped;
+  int params_index = step % INFLIGHT_FRAMES_AMOUNT;
+  uniformParams[params_index].res = glm::vec2{resolution.x, resolution.y};
+  uniformParams[params_index].cursor = glm::vec2{osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
+  uniformParams[params_index].time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
+  std::memcpy(constants[params_index].data(), &uniformParams[params_index], sizeof(uniformParams[params_index]));
+}
+
 void App::drawFrame()
 {
+  ZoneScoped;
+  int constants_index = step % INFLIGHT_FRAMES_AMOUNT;
   // First, get a command buffer to write GPU commands into.
   auto currentCmdBuf = commandManager->acquireNext();
 
@@ -214,18 +241,6 @@ void App::drawFrame()
 
 
       // TODO: Record your commands here!
-
-      glm::uvec2 res {resolution.x, resolution.y};
-      glm::uvec2 cursor {osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
-      double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
-
-      Constants constants {
-        .res = res,
-        .cursor = cursor,
-        .time = (float)time,
-      };
-
-
 
       ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
@@ -272,7 +287,8 @@ void App::drawFrame()
         {
               etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
               etna::Binding{1,
-                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+              etna::Binding{2, constants[constants_index].genBinding()}});
 
       etna::RenderTargetState renderTargets{
         currentCmdBuf,
@@ -290,7 +306,7 @@ void App::drawFrame()
         &vkSet2,
         0, 0);
 
-      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+      //currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
       currentCmdBuf.draw(3, 1, 0, 0);
       }

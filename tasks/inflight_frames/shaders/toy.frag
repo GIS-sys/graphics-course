@@ -1,21 +1,21 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : require
+#include "UniformParams.h"
 
 //layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(location = 0) out vec4 fragColor;
 
-layout(push_constant) uniform params
-{
-  uvec2 iResolution;
-  uvec2 iMouse;
-  float iTime;
-};
-
 layout(binding = 0) uniform sampler2D colorTex;
 layout(binding = 1) uniform sampler2D fileTex;
 
+layout(binding = 2, set = 0) uniform AppData
+{
+  UniformParams params;
+};
 
+#define PROCEDURAL_OBJECTS_AMOUNT 100
 
 
 
@@ -152,8 +152,15 @@ float sdf_cheese(in vec3 pos) {
 
 // sdf for scene
 
+float sdf_procedural_balls(in vec3 pos, int i) {
+    return sdf_sphere(pos, vec3(i*2, i*2, i*2), abs(sin(params.time)));
+}
+
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    float result = mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    for (int i = 0; i < PROCEDURAL_OBJECTS_AMOUNT; ++i)
+        result = min(result, sdf_procedural_balls(pos, i));
+    return result;
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -324,12 +331,12 @@ void main()
     vec2 fragCoord = gl_FragCoord.xy;
 
     // position
-    vec2 mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+    vec2 mouse = params.cursor.xy * 1.0f / params.res.xy - vec2(0.0, 0.5);
     vec3 position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
     //position *= 0.0;
     // ray
-    vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
-    uv.x *= iResolution.x / iResolution.y;
+    vec2 uv = fragCoord / params.res.xy * 2.0 - 1.0;
+    uv.x *= params.res.x / params.res.y;
     vec3 ray = vec3(uv[0], uv[1], 1.0);
     ray /= length(ray);
     mat3 camera = mat3(
