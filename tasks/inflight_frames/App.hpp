@@ -43,7 +43,6 @@ private:
   etna::Image computeImage;
   etna::Sampler computeSampler;
 
-  //UniformParams uniformParams[INFLIGHT_FRAMES_AMOUNT];
   etna::Buffer constants[INFLIGHT_FRAMES_AMOUNT];
   int step = 0;
 };

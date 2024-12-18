@@ -168,7 +168,7 @@ void App::run()
     windowing.poll();
 
     ++step;
-    update();
+    //update();
 
     drawFrame();
 
@@ -252,6 +252,8 @@ void App::drawFrame()
         currentCmdBuf.draw(3, 1, 0, 0);
       }
 
+      update();
+
       etna::set_state(
         currentCmdBuf,
         computeImage.get(),
@@ -283,10 +285,10 @@ void App::drawFrame()
         simpleMaterialInfo.getDescriptorLayoutId(0),
         currentCmdBuf,
         {
-              etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-              etna::Binding{1,
-                image.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-              etna::Binding{2, constants[constants_index].genBinding()}});
+          etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+          etna::Binding{1,
+            image.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+          etna::Binding{2, constants[constants_index].genBinding()}});
 
       etna::RenderTargetState renderTargets{
         currentCmdBuf,
@@ -303,8 +305,6 @@ void App::drawFrame()
         0, 1,
         &vkSet2,
         0, 0);
-
-      //currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 
       currentCmdBuf.draw(3, 1, 0, 0);
       }
