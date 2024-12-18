@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "shaders/UniformParams.h"
 
 #include <etna/Etna.hpp>
 #include <etna/GlobalContext.hpp>
@@ -121,6 +122,13 @@ App::App()
   );
 
 
+  for (int i = 0; i < INFLIGHT_FRAMES_AMOUNT; ++i) {
+    constants[i] = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
+      .size = sizeof(UniformParams),
+      .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
+      .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+      .name = "constants_" + std::to_string(i)});
+  }
   int width;
   int height;
   int channels;
@@ -138,10 +146,6 @@ App::App()
     .format = vkWindow->getCurrentFormat(), //vk::Format::eR8G8B8A8Unorm,
     .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst});
 
-  sampler = etna::Sampler(etna::Sampler::CreateInfo{
-    .addressMode = vk::SamplerAddressMode::eRepeat,
-    .name = "sampler"}
-  );
   etna::BlockingTransferHelper(etna::BlockingTransferHelper::CreateInfo{
       .stagingSize = static_cast<std::uint32_t>(width * height),
   }).uploadImage(
@@ -150,17 +154,6 @@ App::App()
     0, 0,
     std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
   );
-
-  for (int i = 0; i < INFLIGHT_FRAMES_AMOUNT; ++i) {
-    constants[i] = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
-      .size = sizeof(UniformParams),
-      .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
-      .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY,
-      .name = "constants",
-    });
-    constants[i].map();
-  }
-
 }
 
 App::~App()
@@ -189,11 +182,16 @@ void App::run()
 
 void App::update() {
   ZoneScoped;
+
+  UniformParams uniformParams;
   int params_index = step % INFLIGHT_FRAMES_AMOUNT;
-  uniformParams[params_index].res = glm::vec2{resolution.x, resolution.y};
-  uniformParams[params_index].cursor = glm::vec2{osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
-  uniformParams[params_index].time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
-  std::memcpy(constants[params_index].data(), &uniformParams[params_index], sizeof(uniformParams[params_index]));
+  uniformParams.res = glm::vec2{resolution.x, resolution.y};
+  uniformParams.cursor = glm::vec2{osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
+  uniformParams.time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
+
+  std::byte* constantsData = constants[params_index].map();
+  std::memcpy(constantsData, &uniformParams, sizeof(uniformParams));
+  constants[params_index].unmap();
 }
 
 void App::drawFrame()
@@ -287,7 +285,7 @@ void App::drawFrame()
         {
               etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
               etna::Binding{1,
-                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+                image.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
               etna::Binding{2, constants[constants_index].genBinding()}});
 
       etna::RenderTargetState renderTargets{
