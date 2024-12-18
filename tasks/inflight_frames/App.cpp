@@ -244,11 +244,7 @@ void App::drawFrame()
 
       {
         etna::RenderTargetState state{currentCmdBuf, {{}, {128, 128}}, {{image.get(), image.getView({})}}, {}};
-        etna::get_shader_program("local_shadertoy2_texture");
-
         currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, computePipeline.getVkPipeline());
-        //currentCmdBuf.bindDescriptorSets(
-        //  vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
         currentCmdBuf.draw(3, 1, 0, 0);
       }
 
