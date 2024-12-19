@@ -1,3 +1,12 @@
+# How to run
+
+```
+cd graphics-course;
+rm -rf build && mkdir build;
+export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
+cd build; cmake -DCMAKE_BUILD_TYPE=Debug .. && make; cd ../; ./build/tasks/model_bakery/renderer/model_bakery_renderer
+```
+
 # Запекалка моделей
 
 В данном задании вам предстоит познакомиться с пайплайном работы с 3D-моделями.
