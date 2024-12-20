@@ -1,0 +1,29 @@
+# Step 1
+
+```
+cd build
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make && ./tasks/inflight_frames/inflight_frames
+```
+
+Without simulating high load (min sdf step = 0.00001):
+GPU: renderLocalShaderToy2 takes 8.54 ms, renderShader 7.55 ms, renderTexture 11.76 ms
+CPU: < 1 ms
+
+Simulating high load (min sdf step = 0.0000003):
+GPU: renderLocalShaderToy2 takes 15.7 ms, renderShader 14.6 ms, renderTexture 12.4 ms
+CPU: 6.07 ms
+
+When vsync=false it doesn't really change, all in the boundaries of the measurement error.
+
+
+Most time is spent in acquireNext (19 ms). Probably, that is why increasing the number of frames in flight will increase performance.
+
+
+
+# Step 3
+
+If numFramesInFlight=2, GPU timings stay the same. However, time spent in acquireNext reduced to 15ms. If numFramesInFlight=3 it reduces to 12ms
+
+As for the artefacts - I can't see anything special. THe only thing is the frames seems to be... skipping a bit, like a some type of lag. But it may be just a 5-10fps experience
+
+PS: added procedural objects to shader, hoping it will help with proper artefacts. But I haven't seen anything extraordinary

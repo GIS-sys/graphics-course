@@ -1,8 +1,24 @@
-#version 430
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : require
 
-layout(local_size_x = 16, local_size_y = 16) in;
+#include "UniformParams.h"
 
-layout(binding = 0, rgba8) uniform image2D resultImage;
+#define PROCEDURAL_OBJECTS_AMOUNT 30
+
+
+//layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(location = 0) out vec4 fragColor;
+
+layout(binding = 0) uniform sampler2D colorTex;
+layout(binding = 1) uniform sampler2D fileTex;
+layout(binding = 2, set = 0) uniform AppData
+{
+  UniformParams params;
+};
+
+
 
 
 
@@ -40,6 +56,10 @@ float mmin6(float a, float b, float c, float d, float e, float f) {
     return -mmax6(-a, -b, -c, -d, -e, -f);
 }
 
+float maxvec3(vec3 a) {
+    return mmax3(a.x, a.y, a.z);
+}
+
 vec3 mirror(in vec3 target, in vec3 axis) {
     vec3 axis_normalized = axis * dot(target, axis) / length(axis);
     return 2.0 * axis_normalized - target;
@@ -52,6 +72,15 @@ vec3 clamp_color(in vec3 color) {
         max(0.0, min(1.0, color[2]))
     );
 }
+
+float remainder(float a, float b) {
+    b = abs(b);
+    a -= float(int(a / b)) * b;
+    if (a < 0.0) a += b;
+    return a;
+}
+
+float remainder(float a) { return remainder(a, 1.0); }
 
 
 
@@ -79,9 +108,17 @@ float sdf_box(in vec3 pos, vec3 corner, vec3 up, vec3 right, vec3 far) {
 // sdf for objects
 
 float sdf_wall(in vec3 pos) {
-    vec3 CENTER = vec3(0, 0, 45);
-    vec3 NORM = vec3(0, 0, 1);
+    vec3 CENTER = vec3(0, 45, 0);
+    vec3 NORM = vec3(0, 1, 0);
     return sdf_semispace(pos, CENTER, NORM);
+}
+
+float sdf_road(in vec3 pos) {
+    vec3 CORNER = vec3(-200, 45, -40);
+    vec3 UP = vec3(0, -5, 0);
+    vec3 RIGHT = vec3(0, 0, 80);
+    vec3 FAR = vec3(400, 0, 0);
+    return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
 float sdf_ball(in vec3 pos) {
@@ -93,14 +130,14 @@ float sdf_ball(in vec3 pos) {
 float sdf_melon(in vec3 pos) {
     vec3 CENTER = vec3(-15, -5, 15);
     float RADIUS = 5.0;
-    return sdf_sphere(pos, CENTER, RADIUS) + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
+    return sdf_sphere(pos, CENTER, RADIUS);// + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
 }
 
 float sdf_box(in vec3 pos) {
-    vec3 CORNER = vec3(0, 0, 5);
-    vec3 UP = vec3(4.0, 4.0, 0.0);
-    vec3 RIGHT = vec3(-4.0, 4.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 4.0);
+    vec3 CORNER = vec3(0, 0, 10);
+    vec3 UP = vec3(8.0, 8.0, 0.0);
+    vec3 RIGHT = vec3(-8.0, 8.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, 8.0);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
@@ -115,10 +152,17 @@ float sdf_cheese(in vec3 pos) {
     return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
 }
 
+float sdf_procedural_balls(in vec3 pos, int i) {
+    return sdf_sphere(pos, vec3(-i, -i, -i), abs(sin(params.time)));
+}
+
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_wall(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    float result = mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    for (int i = 0; i < PROCEDURAL_OBJECTS_AMOUNT; ++i)
+        result = min(result, sdf_procedural_balls(pos, i));
+    return result;
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -132,19 +176,86 @@ vec3 sdf_normal(vec3 point) {
 
 
 
+// normal - sdf or texture
+
+vec3 get_normal(vec3 point) {
+    float dist = sdf(point);
+    return sdf_normal(point);
+}
+
+
+
+// colors for objects
+
+vec3 col_wall(in vec3 pos) {
+    //return vec3(1.0, 1.0, 1.0);
+    return vec3(texture(colorTex, vec2(remainder(pos.x / 100.0), remainder(pos.z / 100.0))));
+}
+
+vec3 col_road(in vec3 pos) {
+    //return vec3(1.0, 1.0, 0.5);
+    return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
+}
+
+vec3 col_box(in vec3 pos) {
+    // TASK PART 2 - triplanar projection
+    vec3 CORNER = vec3(0, 0, 10);
+    vec3 UP = vec3(8.0, 8.0, 0.0);
+    vec3 RIGHT = vec3(-8.0, 8.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, 8.0);
+    vec3 CENTER = CORNER + (UP + RIGHT + FAR) / 2.0;
+
+    vec3 norm = get_normal(pos);
+    vec3 closest_plane_normal = vec3(
+        (norm.x == maxvec3(norm)) ? 1.0 : 0.0,
+        (norm.y == maxvec3(norm)) ? 1.0 : 0.0,
+        (norm.z == maxvec3(norm)) ? 1.0 : 0.0
+    );
+    vec3 pro_base_1 = normalize(vec3(1, 1, 1));
+    vec3 pro_base_2 = cross(pro_base_1, closest_plane_normal);
+    vec3 v_to_pro = pos - CENTER;
+    float texture_x = dot(v_to_pro, pro_base_1) / length(pro_base_1) / 4.0;
+    float texture_y = dot(v_to_pro, pro_base_2) / length(pro_base_2) / 4.0;
+    //return vec3(0.5, 0.0, 0.0);
+    return vec3(texture(fileTex, vec2(texture_x, texture_y)));
+}
+
+
+// col for scene
+
+vec3 col(in vec3 pos, in vec3 ray) {
+//return get_normal(pos);
+    float MIN_STEP = 0.00001;
+    float dist = sdf(pos);
+    if (dist == sdf_wall(pos)) {
+        return col_wall(pos);
+    } else if (dist == sdf_road(pos)) {
+        return col_road(pos);
+    } else if (dist == sdf_box(pos)) {
+        return col_box(pos);
+    } else {
+        return vec3(1.0, 1.0, 1.0);
+    }
+}
+
+
+
+
 
 // lights
 
-const int LIGHTS_DIRECTIONAL_AMOUNT = 3;
+const int LIGHTS_DIRECTIONAL_AMOUNT = 4;
 vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
-    vec3(1.0, 1.0, 2.0),
-    vec3(0.0, 0.0, 1.0),
-    vec3(-1.0, 0.0, 0.0)
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.5, 1.0, 2.0),
+    vec3(-1.0, 1.0, 0.0),
+    vec3(3, 1.0, -2.0)
 );
 vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
-    vec3(1.0, 0.0, 0.0),
-    vec3(0.3, 0.3, 1.0),
-    vec3(0.0, 1.0, 0.0)
+    vec3(0.5),
+    vec3(1.0, 0.0, 0.0) * 0.5,
+    vec3(0.3, 0.3, 0.85) * 0.5,
+    vec3(0.0, 1.0, 0.0) * 0.5
 );
 
 
@@ -154,20 +265,21 @@ vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
 vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
-    float MIN_STEP = 0.00001;
+    float MIN_STEP = 0.0001;
     hit = true;
     vec3 ray_step = ray / length(ray);
     for (int i = 0; i < 500; ++i) {
         float step_size = sdf(position);
 
-        if (step_size < 0.0) break;
+        //if (step_size < 0.0) break;
         if (step_size < MIN_STEP) return position;
+        //if (step_size < 0.0) return position;
         if (step_size > MAX_STEP) break;
 
         position += step_size * ray_step * SDF_STEP;
     }
     hit = false;
-    return vec3(0, 0, 0);
+    return vec3(0.0);
 }
 
 
@@ -175,17 +287,14 @@ vec3 trace(vec3 position, in vec3 ray, out bool hit) {
 // calculating Phong color
 
 vec3 get_color(in vec3 point, in vec3 ray) {
-    vec3 AMBIENT_LIGHT = vec3(0.2, 0.2, 0.2);
+    vec3 AMBIENT_LIGHT = vec3(0.4, 0.4, 0.4);
     float DIFFUSE_VAL = 0.3;
     float SPEC_POW = 20.0;
     float SPEC_VAL = 0.8;
-    vec3 norm = sdf_normal(point);
+    vec3 norm = get_normal(point);
     vec3 mirrored_ray = -mirror(ray, norm);
     // ambient
     vec3 result = AMBIENT_LIGHT;
-    // change ambient color for fun
-    // result *= vec3(texture(iChannel0, vec2(sin((point.x + point.z) / 50.0), sin((point.y + point.z) / 50.0))));
-    result *= 0.2;
     // diffuse
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
@@ -210,6 +319,8 @@ vec3 get_color(in vec3 point, in vec3 ray) {
             if (!shadow) result += pow(cos_angle, SPEC_POW) * SPEC_VAL * light_color;
         }
     }
+    // apply texture
+    result *= col(point, mirrored_ray);
     // return result
     return result;
 }
@@ -220,19 +331,15 @@ vec3 get_color(in vec3 point, in vec3 ray) {
 
 void main()
 {
-    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+    vec2 fragCoord = gl_FragCoord.xy;
 
     // position
-    //vec2 mouse = iMouse.xy / iResolution.xy - vec2(0.0, 0.5);
-    vec2 mouse = vec2(1.0, 0.5);
+    vec2 mouse = params.cursor.xy * 1.0f / params.res.xy - vec2(0.0, 0.5);
     vec3 position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
     //position *= 0.0;
     // ray
-    //vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
-    //uv.x *= iResolution.x / iResolution.y;
-    vec2 uv = vec2(iuv);
-    uv = uv / vec2(1280.0, 720.0) * 2.0 - 1.0;
-    uv.x *= 1280.0 / 720.0;
+    vec2 uv = fragCoord / params.res.xy * 2.0 - 1.0;
+    uv.x *= params.res.x / params.res.y;
     vec3 ray = vec3(uv[0], uv[1], 1.0);
     ray /= length(ray);
     mat3 camera = mat3(
@@ -250,16 +357,13 @@ void main()
     for (int i = 0; i < 10; ++i) {
         bool hit = false;
         vec3 point = trace(position, ray, hit);
+        float current_color_power = pow(2.0, float(-i) * 2.0);
         if (hit) {
             vec3 color = clamp_color(get_color(point, ray));
-            result_color += color * pow(2.0, float(-i) * 2.0);
+            result_color += color * current_color_power;
             position = point - ray * 0.01; // TODO separate sdfs? or how to cast ray
-            ray = -mirror(ray, sdf_normal(point));
-        } else {
-            break;
+            ray = -mirror(ray, get_normal(point));
         }
     }
-
-    if (iuv.x < 1280 && iuv.y < 720)
-      imageStore(resultImage, iuv, vec4(result_color, 1));
+    fragColor = vec4(result_color, 1.0);
 }
