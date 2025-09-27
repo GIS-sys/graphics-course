@@ -1,4 +1,4 @@
-#include "SceneManager.hpp"
+#include "Bakery.hpp"
 
 #include <stack>
 
@@ -10,13 +10,13 @@
 #include <etna/OneShotCmdMgr.hpp>
 
 
-SceneManager::SceneManager()
+Bakery::Bakery()
   : oneShotCommands{etna::get_context().createOneShotCmdMgr()}
   , transferHelper{etna::BlockingTransferHelper::CreateInfo{.stagingSize = 4096 * 4096 * 4}}
 {
 }
 
-std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path path)
+std::optional<tinygltf::Model> Bakery::loadModel(std::filesystem::path path)
 {
   tinygltf::Model model;
 
@@ -53,99 +53,7 @@ std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path pat
   return model;
 }
 
-SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::Model& model) const
-{
-  std::vector nodeTransforms(model.nodes.size(), glm::identity<glm::mat4x4>());
-
-  for (std::size_t nodeIdx = 0; nodeIdx < model.nodes.size(); ++nodeIdx)
-  {
-    const auto& node = model.nodes[nodeIdx];
-    auto& transform = nodeTransforms[nodeIdx];
-
-    if (!node.matrix.empty())
-    {
-      for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-          transform[i][j] = static_cast<float>(node.matrix[4 * i + j]);
-    }
-    else
-    {
-      if (!node.scale.empty())
-        transform = scale(
-          transform,
-          glm::vec3(
-            static_cast<float>(node.scale[0]),
-            static_cast<float>(node.scale[1]),
-            static_cast<float>(node.scale[2])));
-
-      if (!node.rotation.empty())
-        transform *= mat4_cast(glm::quat(
-          static_cast<float>(node.rotation[3]),
-          static_cast<float>(node.rotation[0]),
-          static_cast<float>(node.rotation[1]),
-          static_cast<float>(node.rotation[2])));
-
-      if (!node.translation.empty())
-        transform = translate(
-          transform,
-          glm::vec3(
-            static_cast<float>(node.translation[0]),
-            static_cast<float>(node.translation[1]),
-            static_cast<float>(node.translation[2])));
-    }
-  }
-
-  std::stack<std::size_t> vertices;
-  for (auto vert : model.scenes[model.defaultScene].nodes)
-    vertices.push(vert);
-
-  while (!vertices.empty())
-  {
-    auto vert = vertices.top();
-    vertices.pop();
-
-    for (auto child : model.nodes[vert].children)
-    {
-      nodeTransforms[child] = nodeTransforms[vert] * nodeTransforms[child];
-      vertices.push(child);
-    }
-  }
-
-  ProcessedInstances result;
-
-  // Don't overallocate matrices, they are pretty chonky.
-  {
-    std::size_t totalNodesWithMeshes = 0;
-    for (std::size_t i = 0; i < model.nodes.size(); ++i)
-      if (model.nodes[i].mesh >= 0)
-        ++totalNodesWithMeshes;
-    result.matrices.reserve(totalNodesWithMeshes);
-    result.meshes.reserve(totalNodesWithMeshes);
-  }
-
-  for (std::size_t i = 0; i < model.nodes.size(); ++i)
-    if (model.nodes[i].mesh >= 0)
-    {
-      result.matrices.push_back(nodeTransforms[i]);
-      result.meshes.push_back(model.nodes[i].mesh);
-    }
-
-  return result;
-}
-
-static std::uint32_t encode_normal(glm::vec3 normal)
-{
-  const std::int32_t x = static_cast<std::int32_t>(normal.x * 32767.0f);
-  const std::int32_t y = static_cast<std::int32_t>(normal.y * 32767.0f);
-
-  const std::uint32_t sign = normal.z >= 0 ? 0 : 1;
-  const std::uint32_t sx = static_cast<std::uint32_t>(x & 0xfffe) | sign;
-  const std::uint32_t sy = static_cast<std::uint32_t>(y & 0xffff) << 16;
-
-  return sx | sy;
-}
-
-SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model& model) const
+Bakery::ProcessedMeshes Bakery::processMeshes(const tinygltf::Model& model) const
 {
   // NOTE: glTF assets can have pretty wonky data layouts which are not appropriate
   // for real-time rendering, so we have to press the data first. In serious engines
@@ -350,7 +258,7 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
   return result;
 }
 
-void SceneManager::uploadData(
+void Bakery::uploadData(
   std::span<const Vertex> vertices, std::span<const std::uint32_t> indices)
 {
   unifiedVbuf = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
@@ -371,22 +279,28 @@ void SceneManager::uploadData(
   transferHelper.uploadBuffer<std::uint32_t>(*oneShotCommands, unifiedIbuf, 0, indices);
 }
 
-void SceneManager::selectScene(std::filesystem::path path)
+void Bakery::selectScene(std::filesystem::path path)
 {
   auto maybeModel = loadModel(path);
   if (!maybeModel.has_value())
     return;
 
   auto model = std::move(*maybeModel);
+  // TODO
+  model.extensionsUsed.push_back("KHR_mesh_quantization");
+  model.extensionsRequired.push_back("KHR_mesh_quantization");
 
-  // By aggregating all SceneManager fields mutations here,
+  // By aggregating all Bakery fields mutations here,
   // we guarantee that we don't forget to clear something
   // when re-loading a scene.
 
   // NOTE: you might want to store these on the GPU for GPU-driven rendering.
-  auto [instMats, instMeshes] = processInstances(model);
-  instanceMatrices = std::move(instMats);
-  instanceMeshes = std::move(instMeshes);
+  //auto [instMats, instMeshes] = processInstances(model);
+  //instanceMatrices = std::move(instMats);
+  //instanceMeshes = std::move(instMeshes);
+
+  // TODO
+  throw 1;
 
   auto [verts, inds, relems, meshs] = processMeshes(model);
 
@@ -396,7 +310,7 @@ void SceneManager::selectScene(std::filesystem::path path)
   uploadData(verts, inds);
 }
 
-etna::VertexByteStreamFormatDescription SceneManager::getVertexFormatDescription()
+etna::VertexByteStreamFormatDescription Bakery::getVertexFormatDescription()
 {
   return etna::VertexByteStreamFormatDescription{
     .stride = sizeof(Vertex),

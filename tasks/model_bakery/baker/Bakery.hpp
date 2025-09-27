@@ -29,10 +29,10 @@ struct Mesh
   std::uint32_t relemCount;
 };
 
-class SceneManager
+class Bakery
 {
 public:
-  SceneManager();
+  Bakery();
 
   void selectScene(std::filesystem::path path);
 
