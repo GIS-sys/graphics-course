@@ -41,6 +41,7 @@ private:
   void drawFrame();
   void specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
   void specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
+  void updateCamera(float deltaTime);
 
 private:
   OsWindowingManager windowing;
