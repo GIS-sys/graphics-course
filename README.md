@@ -1,3 +1,5 @@
+YOU SHOULD HAVE EXACTLY 1.3 VULKAN SDK - 1.4 CAUSES ERROR
+
 # Компьютерная графика
 Репозиторий с материалами для курса компьютерной графики.
 Содержимое исторически имеет корни в репозитории [vk_graphics_basic](https://github.com/msu-graphics-group/vk_graphics_basic), однако на данный момент почти весь код был переписан практически с нуля.
