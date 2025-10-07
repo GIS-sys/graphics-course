@@ -58,8 +58,8 @@ App::App()
   commandManager = etna::get_context().createPerFrameCmdMgr();
   etna::create_program("local_shadertoy2_texture",
     {
-      PARTICLES_SHADERS_ROOT "toy.vert.spv",
-      PARTICLES_SHADERS_ROOT "texture.frag.spv",
+      PARTICLES1_SHADERS_ROOT "toy.vert.spv",
+      PARTICLES1_SHADERS_ROOT "texture.frag.spv",
     }
   );
   computePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("local_shadertoy2_texture", etna::GraphicsPipeline::CreateInfo {
@@ -78,8 +78,8 @@ App::App()
   etna::create_program(
     "shader",
     {
-      PARTICLES_SHADERS_ROOT "toy.vert.spv",
-      PARTICLES_SHADERS_ROOT "toy.frag.spv"
+      PARTICLES1_SHADERS_ROOT "toy.vert.spv",
+      PARTICLES1_SHADERS_ROOT "toy.frag.spv"
     }
   );
   pipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
@@ -96,7 +96,7 @@ App::App()
   int height;
   int channels;
   unsigned char* loaded = stbi_load(
-    PARTICLES_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
+    PARTICLES1_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
     &width,
     &height,
     &channels,
