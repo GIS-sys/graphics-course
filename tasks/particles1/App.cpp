@@ -166,6 +166,12 @@ void App::run()
   while (!osWindow->isBeingClosed())
   {
     windowing.poll();
+
+    auto currentTime = std::chrono::steady_clock::now();
+    float deltaTime = std::chrono::duration<float>(currentTime - lastFrameTime).count();
+    lastFrameTime = currentTime;
+    particleSystem->update(deltaTime, cameraPosition);
+
     drawFrame();
   }
 
@@ -188,7 +194,7 @@ void App::drawGui() {
         "Orbit",
         "Look around",
     };
-    ImGui::Combo("aMouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
+    ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
     if (ImGui::CollapsingHeader("Particle System", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -5.0f, 5.0f);
