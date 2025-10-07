@@ -36,8 +36,11 @@ public:
   void run();
 
 private:
+  void initParticlePipeline(); // TODO
   void drawGui();
   void drawFrame();
+  void specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
+  void specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
 
 private:
   OsWindowingManager windowing;
@@ -66,4 +69,13 @@ private:
   ParticleEmitter::EmitterParams emitterParams;
   std::chrono::steady_clock::time_point lastFrameTime;
   glm::vec3 cameraPosition{0.0f, 0.0f, 3.0f};
+
+  etna::GraphicsPipeline particlePipeline;
+  etna::Buffer particleVertexBuffer;
+  etna::Buffer particleInstanceBuffer;
+  struct CameraData {
+    glm::mat4 viewProj;
+    glm::vec3 cameraPos;
+    float padding;
+  };
 };
