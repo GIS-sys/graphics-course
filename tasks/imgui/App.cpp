@@ -164,7 +164,14 @@ void App::drawFrame()
       1000.0f / ImGui::GetIO().Framerate,
       ImGui::GetIO().Framerate);
 
-    ImGui::SliderInt("Objects Amount", &objectsAmount, 1, 10);
+    ImGui::SliderInt("Objects Amount", &objectsAmount, 0, 256);
+
+    static const char* items[] {
+        "Nothing",
+        "Orbit",
+        "Look around",
+    };
+    ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
     ImGui::NewLine();
 
@@ -224,6 +231,7 @@ void App::drawFrame()
         .cursor = cursor,
         .time = (float)time,
         .objectsAmount = objectsAmount,
+        .mouseControlType = mouseControlType,
       };
 
 

@@ -11,6 +11,7 @@ layout(push_constant) uniform params
   uvec2 iMouse;
   float iTime;
   int objectsAmount;
+  int mouseControlType;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
@@ -154,10 +155,13 @@ float sdf_cheese(in vec3 pos) {
 float sdf_several(in vec3 pos) {
     vec3 CENTER = vec3(-12, -4, 7);
     float RADIUS = 3.0;
+    float ENTIRE_LENGTH = 50.0;
+    float deltaBetween = ENTIRE_LENGTH / (objectsAmount + 1);
+    float deltaStart = -ENTIRE_LENGTH / 2 + deltaBetween;
     float result = sdf_sphere(pos, CENTER, RADIUS);
-    for (int i = 0; i < 128; ++i) {
+    for (int i = 0; i < 4096; ++i) {
         if (i >= objectsAmount) break;
-        result = min(result, sdf_sphere(pos, CENTER + vec3(1, 0, 0) * i, RADIUS));
+        result = min(result, sdf_sphere(pos, CENTER + deltaStart + deltaBetween * i, RADIUS));
     }
     return result;
 }
@@ -336,9 +340,16 @@ void main()
     vec2 fragCoord = gl_FragCoord.xy;
 
     // position
-    vec2 mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
-    vec3 position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
-    //position *= 0.0;
+    vec2 mouse = vec2(0.0, 0.0);
+    vec3 position = vec3(0.0, 0.0, 0.0);
+    if (mouseControlType == 0) {
+        mouse = vec2(0.333, 0.0);
+    } else if (mouseControlType == 1) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+        position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
+    } else if (mouseControlType == 2) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+    }
     // ray
     vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
     uv.x *= iResolution.x / iResolution.y;
