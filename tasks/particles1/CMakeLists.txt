@@ -3,6 +3,7 @@ add_executable(particles1
   main.cpp
   App.cpp
   ParticleEmitter.cpp
+  ParticleSystem.cpp
 )
 
 target_link_libraries(particles1

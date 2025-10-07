@@ -10,6 +10,8 @@
 #include <etna/Sampler.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
+#include <chrono>
+#include "ParticleSystem.hpp"
 
 
 class ImGuiRenderer;
@@ -34,6 +36,7 @@ public:
   void run();
 
 private:
+  void drawGui();
   void drawFrame();
 
 private:
@@ -57,4 +60,10 @@ private:
 
   int objectsAmount = 5;
   int mouseControlType = 0;
+
+  void InitEmitters();
+  std::unique_ptr<ParticleSystem> particleSystem;
+  ParticleEmitter::EmitterParams emitterParams;
+  std::chrono::steady_clock::time_point lastFrameTime;
+  glm::vec3 cameraPosition{0.0f, 0.0f, 3.0f};
 };

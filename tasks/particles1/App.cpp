@@ -15,10 +15,40 @@
 #include "gui/ImGuiRenderer.hpp"
 
 
+void App::InitEmitters() {
+    particleSystem = std::make_unique<ParticleSystem>();
+
+    // Set default emitter parameters
+    emitterParams.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    emitterParams.spawnRate = 20.0f;
+    emitterParams.particleLifetime = 2.0f;
+    emitterParams.initialSpeed = 3.0f;
+    emitterParams.startColor = glm::vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    emitterParams.endColor = glm::vec4(0.2f, 0.8f, 1.0f, 0.0f);
+    emitterParams.startSize = 0.2f;
+    emitterParams.endSize = 0.05f;
+    emitterParams.velocityVariation = glm::vec3(1.0f, 0.5f, 1.0f);
+    emitterParams.gravityEnabled = true;
+
+    // Create 3 emitters at different positions
+    emitterParams.position = glm::vec3(-2.0f, 0.0f, 0.0f);
+    particleSystem->addEmitter(emitterParams);
+
+    emitterParams.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    particleSystem->addEmitter(emitterParams);
+
+    emitterParams.position = glm::vec3(2.0f, 0.0f, 0.0f);
+    particleSystem->addEmitter(emitterParams);
+
+    lastFrameTime = std::chrono::steady_clock::now();
+}
+
 App::App()
   : resolution{1280, 720}
   , useVsync{true}
 {
+  InitEmitters();
+
   // Create window
   osWindow = windowing.createWindow(OsWindow::CreateInfo{
     .resolution = resolution,
@@ -142,43 +172,64 @@ void App::run()
   ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
 }
 
-void App::drawFrame()
-{
-  {
+void App::drawGui() {
     ZoneScopedN("drawGui");
     guiRenderer->nextFrame();
     ImGui::NewFrame();
     ImGui::Begin("Simple render settings");
 
-    //float color[3]{uniformParams.baseColor.r, uniformParams.baseColor.g, uniformParams.baseColor.b};
-    //ImGui::ColorEdit3(
-    //  "Meshes base color", color, ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs);
-    //uniformParams.baseColor = {color[0], color[1], color[2]};
-
-    //float pos[3]{uniformParams.lightPos.x, uniformParams.lightPos.y, uniformParams.lightPos.z};
-    //ImGui::SliderFloat3("Light source position", pos, -10.f, 10.f);
-    //uniformParams.lightPos = {pos[0], pos[1], pos[2]};
-
     ImGui::Text(
       "Application average %.3f ms/frame (%.1f FPS)",
       1000.0f / ImGui::GetIO().Framerate,
       ImGui::GetIO().Framerate);
-
     ImGui::SliderInt("Objects Amount", &objectsAmount, 0, 256);
-
     static const char* items[] {
         "Nothing",
         "Orbit",
         "Look around",
     };
-    ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
+    ImGui::Combo("aMouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
+
+    if (ImGui::CollapsingHeader("Particle System", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -5.0f, 5.0f);
+        ImGui::SliderFloat("Spawn Rate", &emitterParams.spawnRate, 1.0f, 100.0f);
+        ImGui::SliderFloat("Particle Lifetime", &emitterParams.particleLifetime, 0.1f, 5.0f);
+        ImGui::SliderFloat("Initial Speed", &emitterParams.initialSpeed, 0.1f, 10.0f);
+        ImGui::SliderFloat3("Velocity Variation", &emitterParams.velocityVariation.x, 0.0f, 2.0f);
+        ImGui::SliderFloat("Start Size", &emitterParams.startSize, 0.01f, 1.0f);
+        ImGui::SliderFloat("End Size", &emitterParams.endSize, 0.01f, 1.0f);
+        ImGui::ColorEdit4("Start Color", &emitterParams.startColor.x);
+        ImGui::ColorEdit4("End Color", &emitterParams.endColor.x);
+        ImGui::Checkbox("Gravity Enabled", &emitterParams.gravityEnabled);
+        if (ImGui::Button("Update All Emitters")) {
+            for (auto& emitter : particleSystem->getEmitters()) {
+                emitter->setParams(emitterParams);
+            }
+        }
+        if (ImGui::Button("Reset Emitters")) {
+            // Reset to default positions
+            auto& emitters = particleSystem->getEmitters();
+            if (emitters.size() >= 3) {
+                emitterParams.position = glm::vec3(-2.0f, 0.0f, 0.0f);
+                emitters[0]->setParams(emitterParams);
+                emitterParams.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                emitters[1]->setParams(emitterParams);
+                emitterParams.position = glm::vec3(2.0f, 0.0f, 0.0f);
+                emitters[2]->setParams(emitterParams);
+            }
+        }
+    }
 
     ImGui::NewLine();
-
     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press 'B' to recompile and reload shaders");
+
     ImGui::End();
     ImGui::Render();
-  }
+}
+
+void App::drawFrame()
+{
+  drawGui();
 
   // First, get a command buffer to write GPU commands into.
   auto currentCmdBuf = commandManager->acquireNext();
