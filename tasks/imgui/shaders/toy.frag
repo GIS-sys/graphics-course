@@ -10,6 +10,7 @@ layout(push_constant) uniform params
   uvec2 iResolution;
   uvec2 iMouse;
   float iTime;
+  int objectsAmount;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
@@ -150,10 +151,21 @@ float sdf_cheese(in vec3 pos) {
     return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
 }
 
+float sdf_several(in vec3 pos) {
+    vec3 CENTER = vec3(-12, -4, 7);
+    float RADIUS = 3.0;
+    float result = sdf_sphere(pos, CENTER, RADIUS);
+    for (int i = 0; i < 128; ++i) {
+        if (i >= objectsAmount) break;
+        result = min(result, sdf_sphere(pos, CENTER + vec3(1, 0, 0) * i, RADIUS));
+    }
+    return result;
+}
+
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    return mmin6(sdf_wall(pos), sdf_road(pos), /*sdf_ball(pos),*/ sdf_several(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
 }
 
 vec3 sdf_normal(vec3 point) {
