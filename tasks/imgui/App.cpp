@@ -164,6 +164,8 @@ void App::drawFrame()
       1000.0f / ImGui::GetIO().Framerate,
       ImGui::GetIO().Framerate);
 
+    ImGui::SliderInt("Objects Amount", &objectsAmount, 1, 10);
+
     ImGui::NewLine();
 
     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press 'B' to recompile and reload shaders");
@@ -221,6 +223,7 @@ void App::drawFrame()
         .res = res,
         .cursor = cursor,
         .time = (float)time,
+        .objectsAmount = objectsAmount,
       };
 
 

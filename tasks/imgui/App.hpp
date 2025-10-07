@@ -20,6 +20,7 @@ struct Constants
   glm::uvec2 res;
   glm::uvec2 cursor;
   float time;
+  int objectsAmount;
 };
 
 
@@ -52,4 +53,6 @@ private:
   etna::Image computeImage;
   etna::Sampler sampler;
   etna::Sampler computeSampler;
+
+  int objectsAmount = 5;
 };
