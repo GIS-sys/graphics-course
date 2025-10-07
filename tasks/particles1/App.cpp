@@ -59,6 +59,13 @@ void App::initParticlePipeline() {
     etna::GraphicsPipeline::CreateInfo{
       .fragmentShaderOutput = {
         .colorAttachmentFormats = {vkWindow->getCurrentFormat()},
+        //.colorBlendAttachments = {
+        //    .blendEnable = true,
+        //    .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+        //    .dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+        //    .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+        //    .dstAlphaBlendFactor = vk::BlendFactor::eZero
+        //}
       }
     }
   );
@@ -188,6 +195,18 @@ App::App()
 
   // Init ImGUI
   ImGuiRenderer::enableImGuiForWindow(osWindow->native());
+}
+
+void App::updateCamera(float deltaTime) {
+    // Simple orbiting camera for testing
+    static float cameraAngle = 0.0f;
+    cameraAngle += deltaTime * 0.5f;
+
+    cameraPosition = glm::vec3(
+        sin(cameraAngle) * 5.0f,
+        2.0f,
+        cos(cameraAngle) * 5.0f
+    );
 }
 
 App::~App()
@@ -448,6 +467,13 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     {},
     vk::ImageLayout::ePresentSrcKHR,
     vk::ImageAspectFlagBits::eColor);
+  etna::set_state(
+    currentCmdBuf,
+    backbuffer,
+    vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+    vk::AccessFlagBits2::eColorAttachmentWrite,
+    vk::ImageLayout::eColorAttachmentOptimal,
+    vk::ImageAspectFlagBits::eColor);
   // And of course flush the layout transition.
   etna::flush_barriers(currentCmdBuf);
 }
@@ -458,7 +484,17 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
   {
     ETNA_PROFILE_GPU(currentCmdBuf, renderParticles);
 
-    // Set up render target for particles
+    // Ensure backbuffer is in correct layout for color attachment
+    etna::set_state(
+      currentCmdBuf,
+      backbuffer,
+      vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+      vk::AccessFlagBits2::eColorAttachmentWrite,
+      vk::ImageLayout::eColorAttachmentOptimal,
+      vk::ImageAspectFlagBits::eColor);
+    etna::flush_barriers(currentCmdBuf);
+
+    // Set up render target for particles (with blending enabled)
     etna::RenderTargetState particleRenderTargets{
       currentCmdBuf,
       {{0, 0}, {resolution.x, resolution.y}},
@@ -472,17 +508,17 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
                                           (float)resolution.x / (float)resolution.y,
                                           0.1f, 100.0f) *
                          glm::lookAt(cameraPosition,
-                                    glm::vec3(0.0f, 0.0f, 0.0f),
+                                    cameraPosition + glm::vec3(0.0f, 0.0f, -1.0f), // Look forward from camera position
                                     glm::vec3(0.0f, 1.0f, 0.0f));
     cameraData.cameraPos = cameraPosition;
 
     // Bind particle pipeline
     currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline.getVkPipeline());
 
-    // Push camera constants
+    // Push camera constants - make sure your particle shader uses the same layout
     currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
       particlePipeline.getVkPipelineLayout(),
-      vk::ShaderStageFlagBits::eVertex,
+      vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, // Include fragment if needed
       0,
       sizeof(CameraData),
       &cameraData
@@ -494,14 +530,13 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
 
       if (particles.empty()) continue;
 
-      // Update instance buffer with all particles from this emitter
+      // Update instance buffer
       struct ParticleInstance {
         glm::vec3 position;
         glm::vec4 color;
         float size;
       };
 
-      // Update the instance buffer
       std::vector<ParticleInstance> instances;
       instances.reserve(particles.size());
       for (const auto& particle : particles) {
@@ -511,11 +546,22 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
               .size = particle.size
           });
       }
+
       if (!instances.empty()) {
-          auto* mapped = reinterpret_cast<ParticleInstance*>(particleInstanceBuffer.data());
-          if (mapped) {
-              memcpy(mapped, instances.data(), instances.size() * sizeof(ParticleInstance));
-          }
+          // Make sure the buffer is large enough
+          size_t requiredSize = instances.size() * sizeof(ParticleInstance);
+          //if (requiredSize <= particleInstanceBuffer.getInfo().size) {
+              auto* mapped = reinterpret_cast<ParticleInstance*>(particleInstanceBuffer.data());
+              if (mapped) {
+                  memcpy(mapped, instances.data(), requiredSize);
+
+                  // Flush the memory if needed for non-coherent memory
+                  // particleInstanceBuffer.flush(0, requiredSize);
+              }
+          //} else {
+          //    std::cout << "Particle buffer too small! Needed: " << requiredSize
+          //              << ", Available: " << particleInstanceBuffer.getInfo().size << std::endl;
+          //}
       }
 
       // Bind instance buffer
@@ -528,7 +574,7 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
     }
   }
 
-  // Render ImGui on top of everything (AFTER particles)
+  // Render ImGui on top of everything
   {
     ImDrawData* pDrawData = ImGui::GetDrawData();
     if (pDrawData && pDrawData->CmdListsCount > 0) {
@@ -547,17 +593,5 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
     vk::ImageAspectFlagBits::eColor
   );
   etna::flush_barriers(currentCmdBuf);
-}
-
-void App::updateCamera(float deltaTime) {
-    // Simple orbiting camera for testing
-    static float cameraAngle = 0.0f;
-    cameraAngle += deltaTime * 0.5f;
-
-    cameraPosition = glm::vec3(
-        sin(cameraAngle) * 5.0f,
-        2.0f,
-        cos(cameraAngle) * 5.0f
-    );
 }
 
