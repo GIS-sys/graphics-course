@@ -26,7 +26,7 @@ CPMAddPackage(
 )
 
 # Cross-platform 3D graphics
-find_package(Vulkan 1.4.300 REQUIRED)
+find_package(Vulkan 1.3.275 REQUIRED)
 
 # Dear ImGui -- easiest way to do GUI
 CPMAddPackage(
@@ -67,7 +67,7 @@ CPMAddPackage(
 CPMAddPackage(
   NAME etna
   GITHUB_REPOSITORY AlexandrShcherbakov/etna
-  VERSION 1.11.0
+  VERSION 1.9.0
 )
 
 # Type-erased function containers that actually work
