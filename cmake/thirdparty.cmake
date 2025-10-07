@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.20)
 
 
+# Modern formatting library
+CPMAddPackage(
+  NAME fmt
+  GITHUB_REPOSITORY fmtlib/fmt
+  GIT_TAG 11.0.2
+  OPTIONS
+    "FMT_INSTALL OFF"
+    "FMT_TEST OFF"
+    "FMT_DOC OFF"
+  FORCE TRUE
+)
+
+
 # Cross-platform WSI
 CPMAddPackage(
   NAME glfw3
