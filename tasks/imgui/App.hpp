@@ -21,6 +21,7 @@ struct Constants
   glm::uvec2 cursor;
   float time;
   int objectsAmount;
+  int mouseControlType;
 };
 
 
@@ -55,4 +56,5 @@ private:
   etna::Sampler computeSampler;
 
   int objectsAmount = 5;
+  int mouseControlType = 0;
 };
