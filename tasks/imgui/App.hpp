@@ -12,6 +12,9 @@
 #include "wsi/OsWindowingManager.hpp"
 
 
+class ImGuiRenderer;
+
+
 struct Constants
 {
   glm::uvec2 res;
@@ -34,6 +37,8 @@ private:
 private:
   OsWindowingManager windowing;
   std::unique_ptr<OsWindow> osWindow;
+
+  std::unique_ptr<ImGuiRenderer> guiRenderer;
 
   glm::uvec2 resolution;
   bool useVsync;
