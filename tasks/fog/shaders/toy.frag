@@ -366,7 +366,7 @@ bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float part
 }
 
 // Modified trace function to handle particle transparency
-vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
+vec4 trace_transparent(vec3 position, vec3 ray, out bool hit, out float distance) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
     float MIN_STEP = 0.0001;
@@ -376,6 +376,7 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
     float accumulatedAlpha = 0.0;
     float accumulatedSteps = 0.0;
     vec3 ray_step = ray / length(ray);
+    distance = -1.0;
 
     for (int i = 0; i < 500; ++i) {
         // First check SDF
@@ -402,6 +403,7 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
         if (sdf_dist < MIN_STEP) {
             // Hit scene geometry
             hit = true;
+            if (distance < 0) distance = accumulatedSteps;
             vec3 sceneColor = get_color(currentPos, ray);
             return vec4(mix(accumulatedColor, sceneColor, 1.0 - accumulatedAlpha), 1.0);
         }
@@ -416,7 +418,8 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
 
             // Continue tracing from just beyond the particle
             currentPos = hitPos + ray_step * 0.01;
-            accumulatedSteps += 0.01 + closestParticleT;;
+            accumulatedSteps += 0.01 + closestParticleT;
+            if (distance < 0) distance = accumulatedSteps;
 
             if (accumulatedAlpha > 0.99) {
                 hit = true;
@@ -441,6 +444,12 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
 
     hit = false;
     return vec4(accumulatedColor, accumulatedAlpha);
+}
+
+vec3 apply_fog(vec3 result_color, vec3 position, vec3 ray, float distance)
+{
+    result_color *= max(0.2, 1 - distance / 100);
+    return result_color;
 }
 
 void main()
@@ -477,12 +486,15 @@ void main()
     // Use the new transparent trace function
     vec3 result_color = vec3(0.0, 0.0, 0.0);
     bool hit = false;
-    vec4 color = trace_transparent(position, ray, hit);
+    float distance = 0;
+    vec4 color = trace_transparent(position, ray, hit, distance);
     if (hit) {
         result_color = vec3(color);
     } else {
         result_color = mix(vec3(color), vec3(0.1, 0.1, 0.3), 1 - color.a);
     }
+
+    result_color = apply_fog(result_color, position, ray, distance);
     fragColor = vec4(result_color, 1.0);
 }
 
