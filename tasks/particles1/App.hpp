@@ -69,7 +69,7 @@ private:
   etna::Sampler computeSampler;
 
   int objectsAmount = 5;
-  int mouseControlType = 0;
+  int mouseControlType = 2;
 
   void InitEmitters();
   std::unique_ptr<ParticleSystem> particleSystem;

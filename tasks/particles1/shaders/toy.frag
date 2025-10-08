@@ -368,7 +368,7 @@ bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float part
 vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
-    float MIN_STEP = 0.00001;
+    float MIN_STEP = 0.001;
 
     vec3 currentPos = position;
     vec3 accumulatedColor = vec3(0.0);
@@ -486,56 +486,3 @@ void main()
     fragColor = vec4(result_color, 1.0);
 }
 
-
-
-
-
-/*
-// main logic
-
-void main()
-{
-    vec2 fragCoord = gl_FragCoord.xy;
-
-    // position
-    vec2 mouse = vec2(0.0, 0.0);
-    vec3 position = vec3(0.0, 0.0, 0.0);
-    if (mouseControlType == 0) {
-        mouse = vec2(0.333, 0.0);
-    } else if (mouseControlType == 1) {
-        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
-        position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
-    } else if (mouseControlType == 2) {
-        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
-    }
-    // ray
-    vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
-    uv.x *= iResolution.x / iResolution.y;
-    vec3 ray = vec3(uv[0], uv[1], 1.0);
-    ray /= length(ray);
-    mat3 camera = mat3(
-        1, 0, 0,
-        0, cos(-mouse.y * 6.28), -sin(-mouse.y * 6.28),
-        0, sin(-mouse.y * 6.28), cos(-mouse.y * 6.28)
-    ) * mat3(
-        cos(mouse.x * 6.28), 0, sin(mouse.x * 6.28),
-        0, 1, 0,
-        -sin(mouse.x * 6.28), 0, cos(mouse.x * 6.28)
-    );
-    ray *= -camera;
-
-    vec3 result_color = vec3(0.0, 0.0, 0.0);
-    for (int i = 0; i < 10; ++i) {
-        bool hit = false;
-        vec3 point = trace(position, ray, hit);
-        float current_color_power = pow(2.0, float(-i) * 2.0);
-        if (hit) {
-            vec3 color = clamp_color(get_color(point, ray));
-            result_color += color * current_color_power;
-            position = point - ray * 0.01; // TODO separate sdfs? or how to cast ray
-            ray = -mirror(ray, get_normal(point));
-        }
-    }
-    fragColor = vec4(result_color, 1.0);
-}
-*/
