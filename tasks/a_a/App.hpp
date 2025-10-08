@@ -12,11 +12,16 @@
 #include "wsi/OsWindowingManager.hpp"
 
 
+class ImGuiRenderer;
+
+
 struct Constants
 {
   glm::uvec2 res;
   glm::uvec2 cursor;
   float time;
+  int objectsAmount;
+  int mouseControlType;
 };
 
 
@@ -35,6 +40,8 @@ private:
   OsWindowingManager windowing;
   std::unique_ptr<OsWindow> osWindow;
 
+  std::unique_ptr<ImGuiRenderer> guiRenderer;
+
   glm::uvec2 resolution;
   bool useVsync;
 
@@ -47,4 +54,7 @@ private:
   etna::Image computeImage;
   etna::Sampler sampler;
   etna::Sampler computeSampler;
+
+  int objectsAmount = 5;
+  int mouseControlType = 0;
 };
