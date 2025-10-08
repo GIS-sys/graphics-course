@@ -14,12 +14,8 @@ layout(push_constant) uniform params
   int mouseControlType;
 };
 
-layout(binding = 0) uniform sampler2D colorTex;
-layout(binding = 1) uniform sampler2D fileTex;
-
-
-
-
+layout(set = 0, binding = 0) uniform sampler2D colorTex;
+layout(set = 0, binding = 1) uniform sampler2D fileTex;
 
 
 // utils
