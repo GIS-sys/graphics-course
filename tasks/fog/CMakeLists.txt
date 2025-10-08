@@ -2,6 +2,8 @@
 add_executable(fog
   main.cpp
   App.cpp
+  ParticleEmitter.cpp
+  ParticleSystem.cpp
 )
 
 target_link_libraries(fog
@@ -11,5 +13,7 @@ target_add_shaders(fog
   shaders/toy.frag
   shaders/toy.vert
   shaders/texture.frag
+  shaders/particle.frag
+  shaders/particle.vert
 )
 
