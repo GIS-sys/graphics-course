@@ -298,6 +298,14 @@ vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     return vec3(0.0);
 }
 
+vec3 get_light_including_shadows(int directional_light_index, vec3 point)
+{
+    bool shadow = false;
+    trace(point - LIGHTS_DIRECTIONAL_DIRECTION[directional_light_index] * 0.01, -LIGHTS_DIRECTIONAL_DIRECTION[directional_light_index], shadow);
+    if (shadow) return vec3(0.0);
+    return LIGHTS_DIRECTIONAL_COLOR[directional_light_index];
+}
+
 
 
 // calculating Phong color
@@ -314,25 +322,17 @@ vec3 get_color(in vec3 point, in vec3 ray) {
     // diffuse
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
-        vec3 light_color = LIGHTS_DIRECTIONAL_COLOR[i];
         float cos_angle = dot(-light_direction, norm) / length(light_direction) / length(norm);
         if (cos_angle > 0.0) {
-            // check shadow
-            bool shadow = false;
-            trace(point-light_direction*0.01, -light_direction, shadow); // TODO separate sdfs? or how to cast ray
-            if (!shadow) result += cos_angle * DIFFUSE_VAL * light_color;
+            result += cos_angle * DIFFUSE_VAL * get_light_including_shadows(i, point);
         }
     }
     // specular
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
-        vec3 light_color = LIGHTS_DIRECTIONAL_COLOR[i];
         if (dot(-light_direction, norm) > 0.0) {
             float cos_angle = abs(dot(-light_direction, mirrored_ray)) / length(light_direction) / length(mirrored_ray);
-            // check shadow
-            bool shadow = false;
-            trace(point-light_direction*0.01, -light_direction, shadow); // TODO separate sdfs? or how to cast ray
-            if (!shadow) result += pow(cos_angle, SPEC_POW) * SPEC_VAL * light_color;
+            result += pow(cos_angle, SPEC_POW) * SPEC_VAL * get_light_including_shadows(i, point);
         }
     }
     // apply texture
