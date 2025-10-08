@@ -11,5 +11,7 @@ target_add_shaders(a_a
   shaders/toy.frag
   shaders/toy.vert
   shaders/texture.frag
+  shaders/fxaa.frag
+  shaders/copy.frag
 )
 

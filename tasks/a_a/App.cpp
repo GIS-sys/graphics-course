@@ -9,79 +9,52 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <chrono>
-#include <iostream>
+
+#include <imgui.h>
+#include "gui/ImGuiRenderer.hpp"
 
 
 App::App()
   : resolution{1280, 720}
   , useVsync{true}
 {
-  // First, we need to initialize Vulkan, which is not trivial because
-  // extensions are required for just about anything.
+  // Create window
+  osWindow = windowing.createWindow(OsWindow::CreateInfo{
+    .resolution = resolution,
+  });
+
+  // Init Vulkan
   {
-    // GLFW tells us which extensions it needs to present frames to the OS window.
-    // Actually rendering anything to a screen is optional in Vulkan, you can
-    // alternatively save rendered frames into files, send them over network, etc.
-    // Instance extensions do not depend on the actual GPU, only on the OS.
     auto glfwInstExts = windowing.getRequiredVulkanInstanceExtensions();
-
     std::vector<const char*> instanceExtensions{glfwInstExts.begin(), glfwInstExts.end()};
-
-    // We also need the swapchain device extension to get access to the OS
-    // window from inside of Vulkan on the GPU.
-    // Device extensions require HW support from the GPU.
-    // Generally, in Vulkan, we call the GPU a "device" and the CPU/OS combination a "host."
     std::vector<const char*> deviceExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
-    // Etna does all of the Vulkan initialization heavy lifting.
-    // You can skip figuring out how it works for now.
     etna::initialize(etna::InitParams{
       .applicationName = "Local Shadertoy",
       .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
       .instanceExtensions = instanceExtensions,
       .deviceExtensions = deviceExtensions,
-      // Replace with an index if etna detects your preferred GPU incorrectly
+      .features = vk::PhysicalDeviceFeatures2{.features = {}},
       .physicalDeviceIndexOverride = {},
       .numFramesInFlight = 1,
     });
   }
 
-  // Now we can create an OS window
-  osWindow = windowing.createWindow(OsWindow::CreateInfo{
-    .resolution = resolution,
-  });
-
-  // But we also need to hook the OS window up to Vulkan manually!
+  // Init window
   {
-    // First, we ask GLFW to provide a "surface" for the window,
-    // which is an opaque description of the area where we can actually render.
     auto surface = osWindow->createVkSurface(etna::get_context().getInstance());
-
-    // Then we pass it to Etna to do the complicated work for us
     vkWindow = etna::get_context().createWindow(etna::Window::CreateInfo{
       .surface = std::move(surface),
     });
-
-    // And finally ask Etna to create the actual swapchain so that we can
-    // get (different) images each frame to render stuff into.
-    // Here, we do not support window resizing, so we only need to call this once.
     auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
       .resolution = {resolution.x, resolution.y},
       .vsync = useVsync,
     });
-
-    // Technically, Vulkan might fail to initialize a swapchain with the requested
-    // resolution and pick a different one. This, however, does not occur on platforms
-    // we support. Still, it's better to follow the "intended" path.
     resolution = {w, h};
+    guiRenderer = std::make_unique<ImGuiRenderer>(vkWindow->getCurrentFormat());
   }
 
-  // Next, we need a magical Etna helper to send commands to the GPU.
-  // How it is actually performed is not trivial, but we can skip this for now.
+  // Init shaders
   commandManager = etna::get_context().createPerFrameCmdMgr();
-
-
-  // TODO: Initialize any additional resources you require here!
   etna::create_program("local_shadertoy2_texture",
     {
       A_A_SHADERS_ROOT "toy.vert.spv",
@@ -101,6 +74,13 @@ App::App()
   });
   computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.addressMode = vk::SamplerAddressMode::eMirroredRepeat, .name = "computeSampler"});
 
+  sceneImage = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
+    .name = "scene_image",
+    .format = vkWindow->getCurrentFormat(),
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment,
+  });
+
   etna::create_program(
     "shader",
     {
@@ -108,18 +88,51 @@ App::App()
       A_A_SHADERS_ROOT "toy.frag.spv"
     }
   );
-
   pipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
     "shader",
     etna::GraphicsPipeline::CreateInfo{
       .fragmentShaderOutput =
         {
           .colorAttachmentFormats = {vkWindow->getCurrentFormat()}, //{vk::Format::eB8G8R8A8Srgb},
-          //.depthAttachmentFormat = vk::Format::eD32Sfloat,
         },
     }
   );
 
+  etna::create_program("scene",
+    {
+      A_A_SHADERS_ROOT "toy.vert.spv",
+      A_A_SHADERS_ROOT "toy.frag.spv"
+    }
+  );
+  scenePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("scene", etna::GraphicsPipeline::CreateInfo {
+      .fragmentShaderOutput = {
+        .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+      }
+    });
+
+  etna::create_program("fxaa",
+    {
+      A_A_SHADERS_ROOT "toy.vert.spv",
+      A_A_SHADERS_ROOT "fxaa.frag.spv"
+    }
+  );
+  fxaaPipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("fxaa", etna::GraphicsPipeline::CreateInfo {
+      .fragmentShaderOutput = {
+        .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+      }
+    });
+
+  etna::create_program("copy",
+    {
+      A_A_SHADERS_ROOT "toy.vert.spv",
+      A_A_SHADERS_ROOT "copy.frag.spv"
+    }
+  );
+  copyPipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("copy", etna::GraphicsPipeline::CreateInfo {
+      .fragmentShaderOutput = {
+        .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+      }
+    });
 
   int width;
   int height;
@@ -150,6 +163,9 @@ App::App()
     0, 0,
     std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
   );
+
+  // Init ImGUI
+  ImGuiRenderer::enableImGuiForWindow(osWindow->native());
 }
 
 App::~App()
@@ -162,17 +178,53 @@ void App::run()
   while (!osWindow->isBeingClosed())
   {
     windowing.poll();
-
     drawFrame();
   }
 
-  // We need to wait for the GPU to execute the last frame before destroying
-  // all resources and closing the application.
   ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
 }
 
 void App::drawFrame()
 {
+  {
+    ZoneScopedN("drawGui");
+    guiRenderer->nextFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("Simple render settings");
+
+    //float color[3]{uniformParams.baseColor.r, uniformParams.baseColor.g, uniformParams.baseColor.b};
+    //ImGui::ColorEdit3(
+    //  "Meshes base color", color, ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs);
+    //uniformParams.baseColor = {color[0], color[1], color[2]};
+
+    //float pos[3]{uniformParams.lightPos.x, uniformParams.lightPos.y, uniformParams.lightPos.z};
+    //ImGui::SliderFloat3("Light source position", pos, -10.f, 10.f);
+    //uniformParams.lightPos = {pos[0], pos[1], pos[2]};
+
+    ImGui::Text(
+      "Application average %.3f ms/frame (%.1f FPS)",
+      1000.0f / ImGui::GetIO().Framerate,
+      ImGui::GetIO().Framerate);
+
+    ImGui::SliderInt("Objects Amount", &objectsAmount, 0, 256);
+
+    static const char* items[] {
+        "Nothing",
+        "Orbit",
+        "Look around",
+    };
+    ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
+
+    static const char* aaItems[] = {"No AA", "FXAA"};
+    ImGui::Combo("Anti-Aliasing", &aaMode, aaItems, IM_ARRAYSIZE(aaItems));
+
+    ImGui::NewLine();
+
+    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press 'B' to recompile and reload shaders");
+    ImGui::End();
+    ImGui::Render();
+  }
+
   // First, get a command buffer to write GPU commands into.
   auto currentCmdBuf = commandManager->acquireNext();
 
@@ -223,6 +275,8 @@ void App::drawFrame()
         .res = res,
         .cursor = cursor,
         .time = (float)time,
+        .objectsAmount = objectsAmount,
+        .mouseControlType = mouseControlType,
       };
 
 
@@ -230,12 +284,24 @@ void App::drawFrame()
       ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
       {
-        etna::RenderTargetState state{currentCmdBuf, {{}, {128, 128}}, {{image.get(), image.getView({})}}, {}};
-        etna::get_shader_program("local_shadertoy2_texture");
+        etna::RenderTargetState state{currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, {{computeImage.get(), computeImage.getView({})}}, {}};
+        auto simpleMaterialInfo = etna::get_shader_program("local_shadertoy2_texture");
+        auto set = etna::create_descriptor_set(
+          simpleMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          });
 
         currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, computePipeline.getVkPipeline());
-        //currentCmdBuf.bindDescriptorSets(
-        //  vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          computePipeline.getVkPipelineLayout(),
+          0, 1,
+          &vkSet,
+          0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(computePipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
         currentCmdBuf.draw(3, 1, 0, 0);
       }
 
@@ -264,38 +330,84 @@ void App::drawFrame()
 
 
 
+      // Render scene to sceneImage
       {
-      auto simpleMaterialInfo = etna::get_shader_program("shader");
-      auto set2 = etna::create_descriptor_set(
-        simpleMaterialInfo.getDescriptorLayoutId(0),
-        currentCmdBuf,
-        {
-              etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-              etna::Binding{1,
-                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+        etna::RenderTargetState state{currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, {{sceneImage.get(), sceneImage.getView({})}}, {}};
+        auto sceneMaterialInfo = etna::get_shader_program("scene");
+        auto set = etna::create_descriptor_set(
+          sceneMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          });
 
-      etna::RenderTargetState renderTargets{
-        currentCmdBuf,
-        {{0, 0}, {resolution.x, resolution.y}},
-        {{.image = backbuffer, .view = backbufferView}},
-        {}
-      };
-
-      vk::DescriptorSet vkSet2 = set2.getVkSet();
-      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
-      currentCmdBuf.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline.getVkPipelineLayout(),
-        0, 1,
-        &vkSet2,
-        0, 0);
-
-      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
-
-      currentCmdBuf.draw(3, 1, 0, 0);
+        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, scenePipeline.getVkPipeline());
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          scenePipeline.getVkPipelineLayout(),
+          0, 1,
+          &vkSet,
+          0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(scenePipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+        currentCmdBuf.draw(3, 1, 0, 0);
       }
 
+      // Set sceneImage to shader read
+      etna::set_state(
+        currentCmdBuf,
+        sceneImage.get(),
+        vk::PipelineStageFlagBits2::eFragmentShader,
+        vk::AccessFlagBits2::eShaderRead,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
 
+      // Render to backbuffer with AA or copy
+      {
+        etna::RenderTargetState renderTargets{
+          currentCmdBuf,
+          {{0, 0}, {resolution.x, resolution.y}},
+          {{.image = backbuffer, .view = backbufferView}},
+          {}
+        };
+
+        etna::GraphicsPipeline* finalPipeline;
+        std::string programName;
+        if (aaMode == 0) {
+          finalPipeline = &copyPipeline;
+          programName = "copy";
+        } else {
+          finalPipeline = &fxaaPipeline;
+          programName = "fxaa";
+        }
+
+        auto finalMaterialInfo = etna::get_shader_program(programName.c_str());
+        auto set = etna::create_descriptor_set(
+          finalMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{0, sceneImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          });
+
+        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, finalPipeline->getVkPipeline());
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          finalPipeline->getVkPipelineLayout(),
+          0, 1,
+          &vkSet,
+          0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(finalPipeline->getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+        currentCmdBuf.draw(3, 1, 0, 0);
+      }
+
+      {
+        ImDrawData* pDrawData = ImGui::GetDrawData();
+        guiRenderer->render(
+          currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, backbuffer, backbufferView, pDrawData);
+      }
 
       // At the end of "rendering", we are required to change how the pixels of the
       // swpchain image are laid out in memory to something that is appropriate
