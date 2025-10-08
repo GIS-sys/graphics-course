@@ -366,7 +366,7 @@ bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float part
 }
 
 // Modified trace function to handle particle transparency
-vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
+vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
     float MIN_STEP = 0.0001;
@@ -403,7 +403,7 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
             // Hit scene geometry
             hit = true;
             vec3 sceneColor = get_color(currentPos, ray);
-            return mix(accumulatedColor, sceneColor, 1.0 - accumulatedAlpha);
+            return vec4(mix(accumulatedColor, sceneColor, 1.0 - accumulatedAlpha), 1.0);
         }
         else if (closestParticleT < sdf_dist && closestParticleT < MAX_STEP) {
             // Hit a particle
@@ -420,7 +420,7 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
 
             if (accumulatedAlpha > 0.99) {
                 hit = true;
-                return accumulatedColor;
+                return vec4(accumulatedColor, 1.0);
             }
 
             continue;
@@ -432,7 +432,7 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
 
             if (accumulatedSteps > MAX_STEP) {
                 hit = false;
-                return accumulatedColor;
+                return vec4(accumulatedColor, accumulatedAlpha);
             }
 
             currentPos += step_size * ray_step * SDF_STEP;
@@ -440,7 +440,7 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
     }
 
     hit = false;
-    return accumulatedColor;
+    return vec4(accumulatedColor, accumulatedAlpha);
 }
 
 void main()
@@ -474,19 +474,15 @@ void main()
     );
     ray *= -camera;
 
-    vec3 result_color = vec3(0.0, 0.0, 0.0);
-
     // Use the new transparent trace function
+    vec3 result_color = vec3(0.0, 0.0, 0.0);
     bool hit = false;
-    vec3 color = trace_transparent(position, ray, hit);
-
+    vec4 color = trace_transparent(position, ray, hit);
     if (hit) {
-        result_color = color;
+        result_color = vec3(color);
     } else {
-        // Background color or skybox
-        result_color = vec3(0.1, 0.1, 0.3);
+        result_color = mix(vec3(color), vec3(0.1, 0.1, 0.3), 1 - color.a);
     }
-
     fragColor = vec4(result_color, 1.0);
 }
 
