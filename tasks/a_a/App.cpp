@@ -110,6 +110,30 @@ App::App()
       }
     });
 
+  etna::create_program("fxaa",
+    {
+      A_A_SHADERS_ROOT "toy.vert.spv",
+      A_A_SHADERS_ROOT "fxaa.frag.spv"
+    }
+  );
+  fxaaPipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("fxaa", etna::GraphicsPipeline::CreateInfo {
+      .fragmentShaderOutput = {
+        .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+      }
+    });
+
+  etna::create_program("copy",
+    {
+      A_A_SHADERS_ROOT "toy.vert.spv",
+      A_A_SHADERS_ROOT "copy.frag.spv"
+    }
+  );
+  copyPipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("copy", etna::GraphicsPipeline::CreateInfo {
+      .fragmentShaderOutput = {
+        .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+      }
+    });
+
   int width;
   int height;
   int channels;
@@ -330,6 +354,54 @@ void App::drawFrame()
         currentCmdBuf.draw(3, 1, 0, 0);
       }
 
+      // Set sceneImage to shader read
+      etna::set_state(
+        currentCmdBuf,
+        sceneImage.get(),
+        vk::PipelineStageFlagBits2::eFragmentShader,
+        vk::AccessFlagBits2::eShaderRead,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+
+      // Render to backbuffer with AA or copy
+      {
+        etna::RenderTargetState renderTargets{
+          currentCmdBuf,
+          {{0, 0}, {resolution.x, resolution.y}},
+          {{.image = backbuffer, .view = backbufferView}},
+          {}
+        };
+
+        etna::GraphicsPipeline* finalPipeline;
+        std::string programName;
+        if (aaMode == 0) {
+          finalPipeline = &copyPipeline;
+          programName = "copy";
+        } else {
+          finalPipeline = &fxaaPipeline;
+          programName = "fxaa";
+        }
+
+        auto finalMaterialInfo = etna::get_shader_program(programName.c_str());
+        auto set = etna::create_descriptor_set(
+          finalMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{0, sceneImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          });
+
+        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, finalPipeline->getVkPipeline());
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          finalPipeline->getVkPipelineLayout(),
+          0, 1,
+          &vkSet,
+          0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(finalPipeline->getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+        currentCmdBuf.draw(3, 1, 0, 0);
+      }
 
       {
         ImDrawData* pDrawData = ImGui::GetDrawData();
