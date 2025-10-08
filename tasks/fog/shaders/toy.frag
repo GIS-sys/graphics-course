@@ -321,7 +321,8 @@ vec3 get_color(in vec3 point, in vec3 ray) {
     vec3 norm = get_normal(point);
     vec3 mirrored_ray = -mirror(ray, norm);
     // ambient
-    vec3 result = ambientLight;
+    //vec3 result = ambientLight;
+    vec3 result = vec3(0.0, 0.0, 0.0);
     // diffuse
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];

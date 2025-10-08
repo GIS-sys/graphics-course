@@ -276,10 +276,12 @@ void App::drawGui() {
     };
     ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
-    ImGui::SliderFloat3("Ambient Light", &ambientLight.x, 0.0f, 1.0f);
-    ImGui::SliderFloat("Diffuse Val", &diffuseVal, 0.0f, 1.0f);
-    ImGui::SliderFloat("Specular Power", &specPow, 0.0f, 50.0f);
-    ImGui::SliderFloat("Specular Value", &specVal, 0.0f, 1.0f);
+    if (ImGui::CollapsingHeader("Light")) {
+        ImGui::SliderFloat3("Ambient Light", &ambientLight.x, 0.0f, 1.0f);
+        ImGui::SliderFloat("Diffuse Val", &diffuseVal, 0.0f, 1.0f);
+        ImGui::SliderFloat("Specular Power", &specPow, 0.0f, 50.0f);
+        ImGui::SliderFloat("Specular Value", &specVal, 0.0f, 1.0f);
+    }
 
     if (ImGui::CollapsingHeader("Particle System")) {
         ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -50.0f, 50.0f);
