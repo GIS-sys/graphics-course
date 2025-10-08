@@ -15,5 +15,6 @@ target_add_shaders(fog
   shaders/texture.frag
   shaders/particle.frag
   shaders/particle.vert
+  shaders/fog_texture.frag
 )
 

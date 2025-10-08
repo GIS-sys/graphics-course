@@ -6,5 +6,5 @@ float PI = 3.14159265358979323846;
 
 void main()
 {
-    out_fragColor = vec4(0.5, 0.5, 0.2, 1.0);
+    out_fragColor = vec4(0.0, 0.5, 0.2, 1.0);
 }

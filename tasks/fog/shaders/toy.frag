@@ -35,6 +35,8 @@ layout(binding = 2) buffer ParticlesBuffer {
     Particle particles[];
 };
 
+layout(binding = 3) uniform sampler2D fogTex;
+
 
 
 
@@ -468,10 +470,12 @@ float noise(vec2 p){
     return clamp(mix(x1, x2, xy.y), 0., 1.);
 }
 
-float fog(vec3 pos, float time) {  // TODO
-    //float fog_density = fogGeneralDensity * max(0.4, abs(sin(cos(ray.x*ray.x*2)+sin(3*ray.y + iTime / 3))));
-    float v = noise(1.0 * pos.xz + 1.0);
-    return clamp(2.0 - v, 0, 1) * clamp(exp(-0.1*(pos.y)), 0., 1.);
+float fog(vec3 pos, float time) {
+    vec2 fogUV = pos.xz * 0.02; // Adjust scale as needed
+    fogUV += time * 0.05;
+    float fogDensity = texture(fogTex, fogUV).r;
+    float heightFalloff = exp(-0.1 * max(0.0, pos.y));
+    return fogDensity * heightFalloff;
 }
 
 

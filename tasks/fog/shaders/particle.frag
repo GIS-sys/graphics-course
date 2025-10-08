@@ -28,6 +28,12 @@ void main()
 {
     // Get the current color from previous rendering
     vec4 color = texture(inputTexture, inUV);
+
+    // float delta = 0.001;
+    // color = (texture(inputTexture, inUV + vec2( delta,  delta)) +
+    //          texture(inputTexture, inUV + vec2(-delta,  delta)) +
+    //          texture(inputTexture, inUV + vec2( delta, -delta)) +
+    //          texture(inputTexture, inUV + vec2(-delta, -delta))) / 4;
     
     // Calculate distance from current pixel to mouse position
     vec2 fragCoord = inUV * iResolution;

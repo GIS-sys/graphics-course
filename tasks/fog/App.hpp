@@ -85,7 +85,7 @@ private:
   glm::vec3 cameraPosition{0.0f, 0.0f, 3.0f};
 
   etna::GraphicsPipeline particlePipeline;
-  
+
   // Add particle storage buffer
   etna::Buffer particleBuffer;
   std::vector<ParticleData> particleData;
@@ -104,5 +104,14 @@ private:
   float diffuseVal = 0.1;
   float specPow = 20.0;
   float specVal = 0.8;
+
+    // Fog texture resources
+  void initFogTexturePipeline();
+  void updateFogTexture(vk::CommandBuffer& cmdBuf);
+
+  etna::GraphicsPipeline fogTexturePipeline;
+  etna::Image fogTextureImage;
+  etna::Sampler fogTextureSampler;
+  glm::uvec2 fogTextureResolution;
 };
 
