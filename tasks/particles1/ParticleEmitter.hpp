@@ -8,16 +8,44 @@
 class ParticleEmitter {
 public:
     struct EmitterParams {
-        glm::vec3 position{0.0f, 0.0f, 0.0f};
-        float spawnRate = 10.0f;
-        float particleLifetime = 2.0f;
-        float initialSpeed = 2.0f;
-        glm::vec4 startColor{1.0f, 0.5f, 0.2f, 1.0f};
-        glm::vec4 endColor{0.2f, 0.8f, 1.0f, 0.0f};
-        float startSize = 0.1f;
-        float endSize = 0.05f;
-        glm::vec3 velocityVariation{0.5f, 0.5f, 0.5f};
-        bool gravityEnabled = true;
+        glm::vec3 position;
+        float spawnRate;
+        float particleLifetime;
+        float initialSpeed;
+        glm::vec3 velocityVariation;
+        float startSize;
+        float endSize;
+        glm::vec4 startColor;
+        glm::vec4 endColor;
+        bool gravityEnabled;
+
+        void reset() {
+          position = glm::vec3{2.0f, 3.0f, 2.0f};
+          spawnRate = 3.0f;
+          particleLifetime = 3.0f;
+          initialSpeed = 2.0f;
+          velocityVariation = glm::vec3{0.5f, 0.5f, 0.5f};
+          startSize = 0.75f;
+          endSize = 0.05f;
+          startColor = glm::vec4{1.0f, 0.2f, 0.2f, 1.0f};
+          endColor = glm::vec4{0.2f, 1.0f, 0.2f, 0.0f};
+          gravityEnabled = true;
+        }
+
+        void reset1() {
+            reset();
+            position += glm::vec3(-20.0f, 0.0f, 0.0f);
+        }
+
+        void reset2() {
+            reset();
+            position += glm::vec3(0.0f, 0.0f, 0.0f);
+        }
+
+        void reset3() {
+            reset();
+            position += glm::vec3(20.0f, 0.0f, 0.0f);
+        }
     };
 
     ParticleEmitter(const EmitterParams& params);

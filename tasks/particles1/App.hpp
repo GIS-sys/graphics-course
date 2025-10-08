@@ -2,20 +2,24 @@
 
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
-//#include <etna/ComputePipeline.hpp>
 #include <etna/GraphicsPipeline.hpp>
 #include <etna/Image.hpp>
 #include <etna/GlobalContext.hpp>
 #include <etna/BlockingTransferHelper.hpp>
 #include <etna/Sampler.hpp>
+#include <etna/Buffer.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
 #include <chrono>
 #include "ParticleSystem.hpp"
 
-
 class ImGuiRenderer;
 
+struct ParticleData {
+    glm::vec3 position;
+    float size;
+    glm::vec4 color;
+};
 
 struct Constants
 {
@@ -24,8 +28,8 @@ struct Constants
   float time;
   int objectsAmount;
   int mouseControlType;
+  int particleCount; // Add particle count
 };
-
 
 class App
 {
@@ -36,12 +40,13 @@ public:
   void run();
 
 private:
-  void initParticlePipeline(); // TODO
+  void initParticlePipeline();
+  void updateParticleBuffer(); // New method to update particle buffer
   void drawGui();
   void drawFrame();
-  void specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
-  void specificDrawFrameImGUI(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
-  void specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
+  void specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView);
+  void specificDrawFrameImGUI(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView);
+  void specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView);
   void updateCamera(float deltaTime);
 
 private:
@@ -73,12 +78,13 @@ private:
   glm::vec3 cameraPosition{0.0f, 0.0f, 3.0f};
 
   etna::GraphicsPipeline particlePipeline;
-  struct CameraData {
-    glm::mat4 viewProj;
-    glm::vec3 cameraPos;
-    float padding;
-  };
+  
+  // Add particle storage buffer
+  etna::Buffer particleBuffer;
+  std::vector<ParticleData> particleData;
+  static constexpr int MAX_PARTICLES = 10000;
 
-  etna::Image mainRenderImage;  // Add this line
-  etna::Sampler mainRenderSampler; // Add this line
+  etna::Image mainRenderImage;
+  etna::Sampler mainRenderSampler;
 };
+

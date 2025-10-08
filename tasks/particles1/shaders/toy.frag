@@ -12,11 +12,21 @@ layout(push_constant) uniform params
   float iTime;
   int objectsAmount;
   int mouseControlType;
+  int particleCount;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
 layout(binding = 1) uniform sampler2D fileTex;
 
+struct Particle {
+    vec3 position;
+    float size;
+    vec4 color;
+};
+
+layout(binding = 2) buffer ParticlesBuffer {
+    Particle particles[];
+};
 
 
 
@@ -331,8 +341,156 @@ vec3 get_color(in vec3 point, in vec3 ray) {
     return result;
 }
 
+bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float particleSize, out float t, out vec4 particleColor) {
+    vec3 oc = rayOrigin - particlePos;
+    float a = dot(rayDir, rayDir);
+    float b = 2.0 * dot(oc, rayDir);
+    float c = dot(oc, oc) - particleSize * particleSize;
+
+    float discriminant = b * b - 4.0 * a * c;
+
+    if (discriminant < 0.0) {
+        return false;
+    }
+
+    t = (-b - sqrt(discriminant)) / (2.0 * a);
+    if (t < 0.0) {
+        t = (-b + sqrt(discriminant)) / (2.0 * a);
+        if (t < 0.0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Modified trace function to handle particle transparency
+vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
+    float SDF_STEP = 0.8;
+    float MAX_STEP = 1000.0;
+    float MIN_STEP = 0.00001;
+
+    vec3 currentPos = position;
+    vec3 accumulatedColor = vec3(0.0);
+    float accumulatedAlpha = 0.0;
+    vec3 ray_step = ray / length(ray);
+
+    for (int i = 0; i < 500; ++i) {
+        // First check SDF
+        float sdf_dist = sdf(currentPos);
+
+        // Check particle collisions
+        float closestParticleT = MAX_STEP;
+        vec4 closestParticleColor = vec4(0.0);
+        int closestParticleIndex = -1;
+
+        for (int p = 0; p < min(particleCount, 500); p++) {
+            float t;
+            vec4 particleColor;
+ if (intersectParticle(currentPos, ray_step, particles[p].position, particles[p].size, t, particleColor)) {
+                if (t < closestParticleT) {
+                    closestParticleT = t;
+                    closestParticleColor = particles[p].color;
+                    closestParticleIndex = p;
+                }
+            }
+        }
+
+        // Determine the closest hit (SDF or particle)
+        if (sdf_dist < MIN_STEP) {
+            // Hit scene geometry
+            hit = true;
+            vec3 sceneColor = get_color(currentPos, ray);
+            return mix(accumulatedColor, sceneColor, 1.0 - accumulatedAlpha);
+        }
+        else if (closestParticleT < sdf_dist && closestParticleT < MAX_STEP) {
+            // Hit a particle
+            vec3 hitPos = currentPos + ray_step * closestParticleT;
+            vec4 particleColor = closestParticleColor;
+
+            // Blend with accumulated color
+            accumulatedColor = accumulatedColor + particleColor.rgb * particleColor.a * (1.0 - accumulatedAlpha);
+            accumulatedAlpha = accumulatedAlpha + particleColor.a * (1.0 - accumulatedAlpha);
+
+            // Continue tracing from just beyond the particle
+            currentPos = hitPos + ray_step * 0.01;
+
+            if (accumulatedAlpha > 0.99) {
+                hit = true;
+                return accumulatedColor;
+            }
+
+            continue;
+}
+        else {
+            // No hit, continue marching
+            float step_size = min(sdf_dist, closestParticleT);
+
+            if (step_size > MAX_STEP) {
+                hit = false;
+                return accumulatedColor;
+            }
+
+            currentPos += step_size * ray_step * SDF_STEP;
+        }
+    }
+
+    hit = false;
+    return accumulatedColor;
+}
+
+void main()
+{
+    vec2 fragCoord = gl_FragCoord.xy;
+
+    // position
+    vec2 mouse = vec2(0.0, 0.0);
+    vec3 position = vec3(0.0, 0.0, 0.0);
+    if (mouseControlType == 0) {
+        mouse = vec2(0.333, 0.0);
+    } else if (mouseControlType == 1) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+        position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
+    } else if (mouseControlType == 2) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+    }
+    // ray
+    vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
+    uv.x *= iResolution.x / iResolution.y;
+    vec3 ray = vec3(uv[0], uv[1], 1.0);
+    ray /= length(ray);
+    mat3 camera = mat3(
+        1, 0, 0,
+        0, cos(-mouse.y * 6.28), -sin(-mouse.y * 6.28),
+        0, sin(-mouse.y * 6.28), cos(-mouse.y * 6.28)
+    ) * mat3(
+        cos(mouse.x * 6.28), 0, sin(mouse.x * 6.28),
+        0, 1, 0,
+        -sin(mouse.x * 6.28), 0, cos(mouse.x * 6.28)
+    );
+    ray *= -camera;
+
+    vec3 result_color = vec3(0.0, 0.0, 0.0);
+
+    // Use the new transparent trace function
+    bool hit = false;
+    vec3 color = trace_transparent(position, ray, hit);
+
+    if (hit) {
+        result_color = color;
+    } else {
+        // Background color or skybox
+        result_color = vec3(0.1, 0.1, 0.3);
+    }
+
+    fragColor = vec4(result_color, 1.0);
+}
 
 
+
+
+
+/*
 // main logic
 
 void main()
@@ -380,3 +538,4 @@ void main()
     }
     fragColor = vec4(result_color, 1.0);
 }
+*/

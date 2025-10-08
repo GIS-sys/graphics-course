@@ -19,26 +19,12 @@
 void App::InitEmitters() {
     particleSystem = std::make_unique<ParticleSystem>();
 
-    // Set default emitter parameters
-    emitterParams.position = glm::vec3(0.0f, 0.0f, 0.0f);
-    emitterParams.spawnRate = 20.0f;
-    emitterParams.particleLifetime = 2.0f;
-    emitterParams.initialSpeed = 3.0f;
-    emitterParams.startColor = glm::vec4(1.0f, 0.5f, 0.2f, 1.0f);
-    emitterParams.endColor = glm::vec4(0.2f, 0.8f, 1.0f, 0.0f);
-    emitterParams.startSize = 0.2f;
-    emitterParams.endSize = 0.05f;
-    emitterParams.velocityVariation = glm::vec3(1.0f, 0.5f, 1.0f);
-    emitterParams.gravityEnabled = true;
-
     // Create 3 emitters at different positions
-    emitterParams.position = glm::vec3(-2.0f, 0.0f, 0.0f);
+    emitterParams.reset1();
     particleSystem->addEmitter(emitterParams);
-
-    emitterParams.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    emitterParams.reset2();
     particleSystem->addEmitter(emitterParams);
-
-    emitterParams.position = glm::vec3(2.0f, 0.0f, 0.0f);
+    emitterParams.reset3();
     particleSystem->addEmitter(emitterParams);
 
     lastFrameTime = std::chrono::steady_clock::now();
@@ -134,7 +120,7 @@ App::App()
   });
   // Add this - create sampler for main render image
   mainRenderSampler = etna::Sampler(etna::Sampler::CreateInfo{
-    .addressMode = vk::SamplerAddressMode::eClampToEdge, 
+    .addressMode = vk::SamplerAddressMode::eClampToEdge,
     .name = "mainRenderSampler"
   });
 
@@ -188,6 +174,15 @@ App::App()
 
   initParticlePipeline();
 
+  // In the constructor, after creating other resources:
+  particleBuffer = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
+    .size = MAX_PARTICLES * sizeof(ParticleData),
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+    .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    .name = "particle_buffer"
+  });
+  particleData.reserve(MAX_PARTICLES);
+
   // Init ImGUI
   ImGuiRenderer::enableImGuiForWindow(osWindow->native());
 }
@@ -202,6 +197,29 @@ void App::updateCamera(float deltaTime) {
         2.0f,
         cos(cameraAngle) * 5.0f
     );
+}
+
+void App::updateParticleBuffer() {
+    particleData.clear();
+
+    for (auto& emitter : particleSystem->getEmitters()) {
+        for (const auto& particle : emitter->getParticles()) {
+            if (particleData.size() < MAX_PARTICLES) {
+                ParticleData data;
+                data.position = particle.position;
+                data.size = particle.size;
+                data.color = particle.color;
+                particleData.push_back(data);
+            }
+        }
+    }
+
+    // Update the buffer with current particle data
+    if (!particleData.empty()) {
+        void* mapped = particleBuffer.map();
+        memcpy(mapped, particleData.data(), particleData.size() * sizeof(ParticleData));
+        particleBuffer.unmap();
+    }
 }
 
 App::~App()
@@ -221,6 +239,7 @@ void App::run()
 
     updateCamera(deltaTime);
     particleSystem->update(deltaTime, cameraPosition);
+    updateParticleBuffer(); // Update particle buffer each frame
 
     // Debug: print particle counts
     static int frameCount = 0;
@@ -270,18 +289,6 @@ void App::drawGui() {
         if (ImGui::Button("Update All Emitters")) {
             for (auto& emitter : particleSystem->getEmitters()) {
                 emitter->setParams(emitterParams);
-            }
-        }
-        if (ImGui::Button("Reset Emitters")) {
-            // Reset to default positions
-            auto& emitters = particleSystem->getEmitters();
-            if (emitters.size() >= 3) {
-                emitterParams.position = glm::vec3(-2.0f, 0.0f, 0.0f);
-                emitters[0]->setParams(emitterParams);
-                emitterParams.position = glm::vec3(0.0f, 0.0f, 0.0f);
-                emitters[1]->setParams(emitterParams);
-                emitterParams.position = glm::vec3(2.0f, 0.0f, 0.0f);
-                emitters[2]->setParams(emitterParams);
             }
         }
     }
@@ -364,6 +371,7 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     .time = (float)time,
     .objectsAmount = objectsAmount,
     .mouseControlType = mouseControlType,
+    .particleCount = (int)particleData.size() // Add particle count
   };
 
   ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
@@ -380,12 +388,12 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     etna::flush_barriers(currentCmdBuf);
 
     etna::RenderTargetState textureState{
-      currentCmdBuf, 
-      {{0, 0}, {resolution.x, resolution.y}}, 
-      {{computeImage.get(), computeImage.getView({})}}, 
+      currentCmdBuf,
+      {{0, 0}, {resolution.x, resolution.y}},
+      {{computeImage.get(), computeImage.getView({})}},
       {}
     };
-    
+
     currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, computePipeline.getVkPipeline());
     currentCmdBuf.draw(3, 1, 0, 0);
   }
@@ -405,7 +413,7 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     vk::AccessFlagBits2::eShaderRead,
     vk::ImageLayout::eShaderReadOnlyOptimal,
     vk::ImageAspectFlagBits::eColor);
-    
+
   // Prepare mainRenderImage for rendering
   etna::set_state(
     currentCmdBuf,
@@ -424,7 +432,8 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
       currentCmdBuf,
       {
             etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+            etna::Binding{2, particleBuffer.genBinding()},
       });
 
     etna::RenderTargetState renderTargets{
@@ -494,6 +503,7 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         .time = (float)time,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
+        .particleCount = 0,
     };
 
     // Create descriptor set for particle shader - use mainRenderImage as input
@@ -523,8 +533,8 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         0, 0);
 
     currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
-        particlePipeline.getVkPipelineLayout(), 
-        vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex, 
+        particlePipeline.getVkPipelineLayout(),
+        vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex,
         0, sizeof(constants), &constants);
 
     currentCmdBuf.draw(3, 1, 0, 0);
