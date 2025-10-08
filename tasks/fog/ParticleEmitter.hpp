@@ -21,7 +21,7 @@ public:
 
         void reset() {
           position = glm::vec3{-20.0f, 3.0f, 5.0f};
-          spawnRate = 10.0f;
+          spawnRate = 3.0f;
           particleLifetime = 3.0f;
           initialSpeed = 6.0f;
           velocityVariation = glm::vec3{0.5f, 0.5f, 0.5f};

@@ -13,6 +13,13 @@ layout(push_constant) uniform params
   int objectsAmount;
   int mouseControlType;
   int particleCount;
+  float fogGeneralDensity;
+  int fogDivisions;
+  int fogEnabled;
+  vec3 ambientLight;
+  float diffuseVal;
+  float specPow;
+  float specVal;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
@@ -261,14 +268,14 @@ vec3 col(in vec3 pos, in vec3 ray) {
 
 // lights
 
-const int LIGHTS_DIRECTIONAL_AMOUNT = 4;
-vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
-    vec3(0.0, 1.0, 0.0),
+const int LIGHTS_DIRECTIONAL_AMOUNT = 1;
+vec3[4] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
+    vec3(1.0, 1.0, 0.0),
     vec3(0.5, 1.0, 2.0),
     vec3(-1.0, 1.0, 0.0),
     vec3(3, 1.0, -2.0)
 );
-vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
+vec3[4] LIGHTS_DIRECTIONAL_COLOR = vec3[](
     vec3(0.5),
     vec3(1.0, 0.0, 0.0) * 0.5,
     vec3(0.3, 0.3, 0.85) * 0.5,
@@ -298,7 +305,7 @@ vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     return vec3(0.0);
 }
 
-vec3 get_light_including_shadows(int directional_light_index, vec3 point)
+vec3 get_light_including_shadows(int directional_light_index, vec3 point)  // TODO
 {
     bool shadow = false;
     trace(point - LIGHTS_DIRECTIONAL_DIRECTION[directional_light_index] * 0.01, -LIGHTS_DIRECTIONAL_DIRECTION[directional_light_index], shadow);
@@ -311,20 +318,16 @@ vec3 get_light_including_shadows(int directional_light_index, vec3 point)
 // calculating Phong color
 
 vec3 get_color(in vec3 point, in vec3 ray) {
-    vec3 AMBIENT_LIGHT = vec3(0.4, 0.4, 0.4);
-    float DIFFUSE_VAL = 0.3;
-    float SPEC_POW = 20.0;
-    float SPEC_VAL = 0.8;
     vec3 norm = get_normal(point);
     vec3 mirrored_ray = -mirror(ray, norm);
     // ambient
-    vec3 result = AMBIENT_LIGHT;
+    vec3 result = ambientLight;
     // diffuse
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
         float cos_angle = dot(-light_direction, norm) / length(light_direction) / length(norm);
         if (cos_angle > 0.0) {
-            result += cos_angle * DIFFUSE_VAL * get_light_including_shadows(i, point);
+            result += cos_angle * diffuseVal * get_light_including_shadows(i, point);
         }
     }
     // specular
@@ -332,7 +335,7 @@ vec3 get_color(in vec3 point, in vec3 ray) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
         if (dot(-light_direction, norm) > 0.0) {
             float cos_angle = abs(dot(-light_direction, mirrored_ray)) / length(light_direction) / length(mirrored_ray);
-            result += pow(cos_angle, SPEC_POW) * SPEC_VAL * get_light_including_shadows(i, point);
+            result += pow(cos_angle, specPow) * specVal * get_light_including_shadows(i, point);
         }
     }
     // apply texture
@@ -446,11 +449,56 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit, out float distance
     return vec4(accumulatedColor, accumulatedAlpha);
 }
 
-vec3 apply_fog(vec3 result_color, vec3 position, vec3 ray, float distance)
-{
-    result_color *= max(0.2, 1 - distance / 100);
-    return result_color;
+
+
+float rand(vec2 c){
+    return fract(sin(dot(c.xy, vec2(12.7898,78.233)) + cos(dot(c.xy, vec2(-12315.5767, 3524.56)))) * 43718.5453);
 }
+
+float noise(vec2 p){
+    vec2 ij = floor(p);
+    vec2 xy = fract(p);
+    xy = 3.*xy*xy-2.*xy*xy*xy;
+    float a = rand((ij+vec2(0.,0.)));
+    float b = rand((ij+vec2(1.,0.)));
+    float c = rand((ij+vec2(0.,1.)));
+    float d = rand((ij+vec2(1.,1.)));
+    float x1 = mix(a, b, xy.x);
+    float x2 = mix(c, d, xy.x);
+    return clamp(mix(x1, x2, xy.y), 0., 1.);
+}
+
+float fog(vec3 pos, float time) {  // TODO
+    //float fog_density = fogGeneralDensity * max(0.4, abs(sin(cos(ray.x*ray.x*2)+sin(3*ray.y + iTime / 3))));
+    float v = noise(1.0 * pos.xz + 1.0);
+    return clamp(2.0 - v, 0, 1) * clamp(exp(-0.1*(pos.y)), 0., 1.);
+}
+
+
+
+
+vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)  // TODO
+{
+    const float FOG_FULL_DISTANCE = 1000;
+    if (distance < 0) distance = 100000;
+
+    float fog_divisions = min(128, fogDivisions);
+
+    vec3 result_color = vec3(0.0, 0.0, 0.0);
+    float stepf = distance / fog_divisions;
+    for (int i = 0; i < min(128, fog_divisions); ++i) {
+        vec3 fog_spot = position + (i + 0.5) * stepf * ray;
+        for (int j = 0; j < LIGHTS_DIRECTIONAL_AMOUNT; ++j) {
+            result_color = result_color + get_light_including_shadows(j, fog_spot) / (fog_divisions * 1.0) * (1.0 + dot(LIGHTS_DIRECTIONAL_DIRECTION[j], ray));
+        }
+    }
+    float fog_density = fogGeneralDensity * fog(ray, iTime);
+    //return mix(color, result_color, fog_density * max(0.0, min(1.0, distance / FOG_FULL_DISTANCE)));
+    return color + clamp(result_color * fog_density * max(0.0, min(1.0, distance / FOG_FULL_DISTANCE)), 0.0, 0.9);
+}
+
+
+
 
 void main()
 {
@@ -494,7 +542,8 @@ void main()
         result_color = mix(vec3(color), vec3(0.1, 0.1, 0.3), 1 - color.a);
     }
 
-    result_color = apply_fog(result_color, position, ray, distance);
+    if (fogEnabled == 1)
+        result_color = apply_fog(result_color, position, ray, distance);
     fragColor = vec4(result_color, 1.0);
 }
 

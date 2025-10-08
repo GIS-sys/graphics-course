@@ -28,7 +28,14 @@ struct Constants
   float time;
   int objectsAmount;
   int mouseControlType;
-  int particleCount; // Add particle count
+  int particleCount;
+  float fogGeneralDensity;
+  int fogDivisions;
+  int fogEnabled;
+  glm::vec3 ambientLight;
+  float diffuseVal;
+  float specPow;
+  float specVal;
 };
 
 class App
@@ -86,5 +93,16 @@ private:
 
   etna::Image mainRenderImage;
   etna::Sampler mainRenderSampler;
+
+  // fog
+  float fogGeneralDensity = 0.4;
+  int fogDivisions = 5;
+  bool fogEnabled = true;
+
+  // specs
+  glm::vec3 ambientLight{0.2, 0.2, 0.2};
+  float diffuseVal = 0.1;
+  float specPow = 20.0;
+  float specVal = 0.8;
 };
 

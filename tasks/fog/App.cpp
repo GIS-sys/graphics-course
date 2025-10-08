@@ -276,7 +276,12 @@ void App::drawGui() {
     };
     ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
-    if (ImGui::CollapsingHeader("Particle System", ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::SliderFloat3("Ambient Light", &ambientLight.x, 0.0f, 1.0f);
+    ImGui::SliderFloat("Diffuse Val", &diffuseVal, 0.0f, 1.0f);
+    ImGui::SliderFloat("Specular Power", &specPow, 0.0f, 50.0f);
+    ImGui::SliderFloat("Specular Value", &specVal, 0.0f, 1.0f);
+
+    if (ImGui::CollapsingHeader("Particle System")) {
         ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -50.0f, 50.0f);
         ImGui::SliderFloat("Spawn Rate", &emitterParams.spawnRate, 1.0f, 100.0f);
         ImGui::SliderFloat("Particle Lifetime", &emitterParams.particleLifetime, 0.1f, 5.0f);
@@ -294,6 +299,12 @@ void App::drawGui() {
                 ++i;
             }
         }
+    }
+
+    if (ImGui::CollapsingHeader("Fog", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Enabled", &fogEnabled);
+        ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 1.0f);
+        ImGui::SliderInt("Divisions for integral", &fogDivisions, 1, 100);
     }
 
     ImGui::NewLine();
@@ -374,7 +385,14 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     .time = (float)time,
     .objectsAmount = objectsAmount,
     .mouseControlType = mouseControlType,
-    .particleCount = (int)particleData.size() // Add particle count
+    .particleCount = (int)particleData.size(),
+    .fogGeneralDensity = fogGeneralDensity,
+    .fogDivisions = fogDivisions,
+    .fogEnabled = fogEnabled,
+    .ambientLight = ambientLight,
+    .diffuseVal = diffuseVal,
+    .specPow = specPow,
+    .specVal = specVal,
   };
 
   ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
@@ -506,7 +524,14 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         .time = (float)time,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
-        .particleCount = 0,
+        .particleCount = (int)particleData.size(),
+        .fogGeneralDensity = fogGeneralDensity,
+        .fogDivisions = fogDivisions,
+        .fogEnabled = fogEnabled,
+        .ambientLight = ambientLight,
+        .diffuseVal = diffuseVal,
+        .specPow = specPow,
+        .specVal = specVal,
     };
 
     // Create descriptor set for particle shader - use mainRenderImage as input
