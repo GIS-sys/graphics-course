@@ -45,40 +45,21 @@ void App::InitEmitters() {
 }
 
 void App::initParticlePipeline() {
-  etna::create_program(
-    "particle",
-    {
-      PARTICLES1_SHADERS_ROOT "particle.vert.spv",
-      PARTICLES1_SHADERS_ROOT "particle.frag.spv"
-    }
-  );
+    etna::create_program(
+        "particle",
+        {
+            PARTICLES1_SHADERS_ROOT "particle.vert.spv",
+            PARTICLES1_SHADERS_ROOT "particle.frag.spv"
+        }
+    );
 
-  // Create particle pipeline with alpha blending - using Etna's actual API structure
-  particlePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
-    "particle",
-    etna::GraphicsPipeline::CreateInfo{
-      .fragmentShaderOutput = {
-        .colorAttachmentFormats = {vkWindow->getCurrentFormat()},
-        //.colorBlendAttachments = {
-        //    .blendEnable = true,
-        //    .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
-        //    .dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
-        //    .srcAlphaBlendFactor = vk::BlendFactor::eOne,
-        //    .dstAlphaBlendFactor = vk::BlendFactor::eZero
-        //}
-      }
-    }
-  );
-
-  // Create particle instance buffer - using correct Etna buffer creation
-  const size_t MAX_PARTICLES = 10000;
-  particleInstanceBuffer = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
-    .size = (sizeof(glm::vec3) + sizeof(glm::vec4) + sizeof(float)) * MAX_PARTICLES,
-    .bufferUsage = vk::BufferUsageFlagBits::eVertexBuffer,
-    .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    //.allocationCreate = VMA_ALLOCATION_CREATE_MAPPED_BIT,
-    .name = "particle_instance_buffer"
-  });
+    particlePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
+        "particle",
+        etna::GraphicsPipeline::CreateInfo{
+            .fragmentShaderOutput = {
+                .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+            }
+        });
 }
 
 App::App()
@@ -300,53 +281,51 @@ void App::drawGui() {
 
 void App::drawFrame()
 {
-  drawGui();
+    drawGui();
 
-  // First, get a command buffer to write GPU commands into.
-  auto currentCmdBuf = commandManager->acquireNext();
+    // First, get a command buffer to write GPU commands into.
+    auto currentCmdBuf = commandManager->acquireNext();
 
-  // Next, tell Etna that we are going to start processing the next frame.
-  etna::begin_frame();
+    // Next, tell Etna that we are going to start processing the next frame.
+    etna::begin_frame();
 
-  // And now get the image we should be rendering the picture into.
-  auto nextSwapchainImage = vkWindow->acquireNext();
+    // And now get the image we should be rendering the picture into.
+    auto nextSwapchainImage = vkWindow->acquireNext();
 
-  // When window is minimized, we can't render anything in Windows
-  // because it kills the swapchain, so we skip frames in this case.
-  if (nextSwapchainImage)
-  {
-    auto [backbuffer, backbufferView, backbufferAvailableSem] = *nextSwapchainImage;
+    // When window is minimized, we can't render anything in Windows
+    // because it kills the swapchain, so we skip frames in this case.
+    if (nextSwapchainImage)
+    {
+        auto [backbuffer, backbufferView, backbufferAvailableSem] = *nextSwapchainImage;
 
-    ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
-    specificDrawFrameMain(currentCmdBuf, backbuffer, backbufferView);
-    specificDrawFrameParticles(currentCmdBuf, backbuffer, backbufferView);
-    ETNA_CHECK_VK_RESULT(currentCmdBuf.end());
+        ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
+        specificDrawFrameMain(currentCmdBuf, backbuffer, backbufferView);
+        specificDrawFrameParticles(currentCmdBuf, backbuffer, backbufferView); // Particles come after main rendering
+        specificDrawFrameImGUI(currentCmdBuf, backbuffer, backbufferView);
+        ETNA_CHECK_VK_RESULT(currentCmdBuf.end());
 
-    // We are done recording GPU commands now and we can send them to be executed by the GPU.
-    // Note that the GPU won't start executing our commands before the semaphore is
-    // signalled, which will happen when the OS says that the next swapchain image is ready.
-    auto renderingDone =
-      commandManager->submit(std::move(currentCmdBuf), std::move(backbufferAvailableSem));
+        // We are done recording GPU commands now and we can send them to be executed by the GPU.
+        auto renderingDone =
+            commandManager->submit(std::move(currentCmdBuf), std::move(backbufferAvailableSem));
 
-    // Finally, present the backbuffer the screen, but only after the GPU tells the OS
-    // that it is done executing the command buffer via the renderingDone semaphore.
-    const bool presented = vkWindow->present(std::move(renderingDone), backbufferView);
+        // Finally, present the backbuffer the screen
+        const bool presented = vkWindow->present(std::move(renderingDone), backbufferView);
 
-    if (!presented)
-      nextSwapchainImage = std::nullopt;
-  }
+        if (!presented)
+            nextSwapchainImage = std::nullopt;
+    }
 
-  etna::end_frame();
+    etna::end_frame();
 
-  // After a window us un-minimized, we need to restore the swapchain to continue rendering.
-  if (!nextSwapchainImage && osWindow->getResolution() != glm::uvec2{0, 0})
-  {
-    auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
-      .resolution = {resolution.x, resolution.y},
-      .vsync = useVsync,
-    });
-    ETNA_VERIFY((resolution == glm::uvec2{w, h}));
-  }
+    // After a window us un-minimized, we need to restore the swapchain to continue rendering.
+    if (!nextSwapchainImage && osWindow->getResolution() != glm::uvec2{0, 0})
+    {
+        auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
+            .resolution = {resolution.x, resolution.y},
+            .vsync = useVsync,
+        });
+        ETNA_VERIFY((resolution == glm::uvec2{w, h}));
+    }
 }
 
 void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView)
@@ -463,7 +442,7 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     currentCmdBuf,
     backbuffer,
     // This looks weird, but is correct. Ask about it later.
-    vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+vk::PipelineStageFlagBits2::eColorAttachmentOutput,
     {},
     vk::ImageLayout::ePresentSrcKHR,
     vk::ImageAspectFlagBits::eColor);
@@ -478,120 +457,83 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
   etna::flush_barriers(currentCmdBuf);
 }
 
+void App::specificDrawFrameImGUI(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView)
+{
+  // Render ImGui on top of everything
+  ImDrawData* pDrawData = ImGui::GetDrawData();
+  if (pDrawData && pDrawData->CmdListsCount > 0) {
+    guiRenderer->render(
+      currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, backbuffer, backbufferView, pDrawData);
+  }
+}
+
 void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView)
 {
-  // RENDER PARTICLES
-  {
     ETNA_PROFILE_GPU(currentCmdBuf, renderParticles);
 
+    // First, transition the computeImage to shader read layout for use as input texture
+    etna::set_state(
+        currentCmdBuf,
+        computeImage.get(),
+        vk::PipelineStageFlagBits2::eFragmentShader,
+        vk::AccessFlagBits2::eShaderRead,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        vk::ImageAspectFlagBits::eColor);
+    
     // Ensure backbuffer is in correct layout for color attachment
     etna::set_state(
-      currentCmdBuf,
-      backbuffer,
-      vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-      vk::AccessFlagBits2::eColorAttachmentWrite,
-      vk::ImageLayout::eColorAttachmentOptimal,
-      vk::ImageAspectFlagBits::eColor);
+        currentCmdBuf,
+        backbuffer,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageAspectFlagBits::eColor);
     etna::flush_barriers(currentCmdBuf);
 
-    // Set up render target for particles (with blending enabled)
-    etna::RenderTargetState particleRenderTargets{
-      currentCmdBuf,
-      {{0, 0}, {resolution.x, resolution.y}},
-      {{.image = backbuffer, .view = backbufferView}},
-      {}
+    // Set up constants for particle shader
+    glm::uvec2 res {resolution.x, resolution.y};
+    glm::uvec2 cursor {osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
+    double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
+
+    Constants constants {
+        .res = res,
+        .cursor = cursor,
+        .time = (float)time,
+        .objectsAmount = objectsAmount,
+        .mouseControlType = mouseControlType,
     };
 
-    // Simple camera setup
-    CameraData cameraData;
-    cameraData.viewProj = glm::perspective(glm::radians(45.0f),
-                                          (float)resolution.x / (float)resolution.y,
-                                          0.1f, 100.0f) *
-                         glm::lookAt(cameraPosition,
-                                    cameraPosition + glm::vec3(0.0f, 0.0f, -1.0f), // Look forward from camera position
-                                    glm::vec3(0.0f, 1.0f, 0.0f));
-    cameraData.cameraPos = cameraPosition;
+    // Create descriptor set for particle shader - use computeImage as input texture
+    auto particleMaterialInfo = etna::get_shader_program("particle");
+    auto particleSet = etna::create_descriptor_set(
+        particleMaterialInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
+            etna::Binding{0, computeImage.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+        });
 
-    // Bind particle pipeline
+    // Render fullscreen quad with particle shader
+    etna::RenderTargetState renderTargets{
+        currentCmdBuf,
+        {{0, 0}, {resolution.x, resolution.y}},
+        {{.image = backbuffer, .view = backbufferView}},
+        {}
+    };
+
+    vk::DescriptorSet vkParticleSet = particleSet.getVkSet();
     currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline.getVkPipeline());
+    currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        particlePipeline.getVkPipelineLayout(),
+        0, 1,
+        &vkParticleSet,
+        0, 0);
 
-    // Push camera constants - make sure your particle shader uses the same layout
     currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
-      particlePipeline.getVkPipelineLayout(),
-      vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, // Include fragment if needed
-      0,
-      sizeof(CameraData),
-      &cameraData
-    );
+        particlePipeline.getVkPipelineLayout(), 
+        vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex, 
+        0, sizeof(constants), &constants);
 
-    // Render all emitters
-    for (auto& emitter : particleSystem->getEmitters()) {
-      const auto& particles = emitter->getParticles();
-
-      if (particles.empty()) continue;
-
-      // Update instance buffer
-      struct ParticleInstance {
-        glm::vec3 position;
-        glm::vec4 color;
-        float size;
-      };
-
-      std::vector<ParticleInstance> instances;
-      instances.reserve(particles.size());
-      for (const auto& particle : particles) {
-          instances.push_back(ParticleInstance{
-              .position = particle.position,
-              .color = particle.color,
-              .size = particle.size
-          });
-      }
-
-      if (!instances.empty()) {
-          // Make sure the buffer is large enough
-          size_t requiredSize = instances.size() * sizeof(ParticleInstance);
-          //if (requiredSize <= particleInstanceBuffer.getInfo().size) {
-              auto* mapped = reinterpret_cast<ParticleInstance*>(particleInstanceBuffer.data());
-              if (mapped) {
-                  memcpy(mapped, instances.data(), requiredSize);
-
-                  // Flush the memory if needed for non-coherent memory
-                  // particleInstanceBuffer.flush(0, requiredSize);
-              }
-          //} else {
-          //    std::cout << "Particle buffer too small! Needed: " << requiredSize
-          //              << ", Available: " << particleInstanceBuffer.getInfo().size << std::endl;
-          //}
-      }
-
-      // Bind instance buffer
-      vk::Buffer vertexBuffer = particleInstanceBuffer.get();
-      vk::DeviceSize offsets[] = {0};
-      currentCmdBuf.bindVertexBuffers(0, 1, &vertexBuffer, offsets);
-
-      // Draw particles - 4 vertices per particle (quad)
-      currentCmdBuf.draw(4, instances.size(), 0, 0);
-    }
-  }
-
-  // Render ImGui on top of everything
-  {
-    ImDrawData* pDrawData = ImGui::GetDrawData();
-    if (pDrawData && pDrawData->CmdListsCount > 0) {
-      guiRenderer->render(
-        currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, backbuffer, backbufferView, pDrawData);
-    }
-  }
-
-  // Transition for presentation
-  etna::set_state(
-    currentCmdBuf,
-    backbuffer,
-    vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-    {},
-    vk::ImageLayout::ePresentSrcKHR,
-    vk::ImageAspectFlagBits::eColor
-  );
-  etna::flush_barriers(currentCmdBuf);
+    currentCmdBuf.draw(3, 1, 0, 0);
 }
 

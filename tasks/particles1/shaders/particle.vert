@@ -1,39 +1,30 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec4 inColor;
-layout(location = 2) in float inSize;
+layout(location = 0) out vec2 outUV;
+layout(location = 1) out vec3 outMousePos;
 
-layout(location = 0) out vec4 fragColor;
+layout(push_constant) uniform params
+{
+    uvec2 iResolution;
+    uvec2 iMouse;
+    float iTime;
+    int objectsAmount;
+    int mouseControlType;
+};
 
-layout(push_constant) uniform Camera {
-    mat4 viewProj;
-    vec3 cameraPos;
-} cam;
-
-void main() {
-    //fragColor = inColor;
-    fragColor = vec4(1.0, 0.0, 0.0, 0.5);
+void main()
+{
+    // Fullscreen triangle vertices
+    vec2 positions[3] = vec2[](
+        vec2(-1.0, -1.0),
+        vec2(3.0, -1.0),
+        vec2(-1.0, 3.0)
+    );
     
-    //// Billboard effect - always face camera
-    //vec3 pos = inPosition;
-    //vec3 toCamera = normalize(cam.cameraPos - pos);
-    //vec3 right = cross(toCamera, vec3(0.0, 1.0, 0.0));
-    //vec3 up = cross(right, toCamera);
-    //
-    //// Expand quad based on size
-    //uint vertexId = gl_VertexIndex % 4;
-    //vec2 offsets[4] = vec2[](
-    //    vec2(-1.0, -1.0),
-    //    vec2(1.0, -1.0),
-    //    vec2(-1.0, 1.0),
-    //    vec2(1.0, 1.0)
-    //);
-    //
-    //vec2 offset = offsets[vertexId];
-    //pos += (right * offset.x + up * offset.y) * inSize * 0.5;
-    //
-    //gl_Position = cam.viewProj * vec4(pos, 1.0);
+    vec2 pos = positions[gl_VertexIndex];
+    gl_Position = vec4(pos, 0.0, 1.0);
+    outUV = (pos + 1.0) * 0.5;
+    outMousePos = vec3(iMouse.xy, 0.0);
 }
 

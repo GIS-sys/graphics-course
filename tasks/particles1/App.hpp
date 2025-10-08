@@ -40,6 +40,7 @@ private:
   void drawGui();
   void drawFrame();
   void specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
+  void specificDrawFrameImGUI(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
   void specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView); // TODO
   void updateCamera(float deltaTime);
 
@@ -72,8 +73,6 @@ private:
   glm::vec3 cameraPosition{0.0f, 0.0f, 3.0f};
 
   etna::GraphicsPipeline particlePipeline;
-  etna::Buffer particleVertexBuffer;
-  etna::Buffer particleInstanceBuffer;
   struct CameraData {
     glm::mat4 viewProj;
     glm::vec3 cameraPos;
