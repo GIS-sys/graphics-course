@@ -353,12 +353,13 @@ bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float part
         return false;
     }
 
-    t = (-b - sqrt(discriminant)) / (2.0 * a);
+    float sd = sqrt(discriminant);
+    t = (-b - sd) / (2.0 * a);
     if (t < 0.0) {
-        t = (-b + sqrt(discriminant)) / (2.0 * a);
-        if (t < 0.0) {
-            return false;
-        }
+      t = (-b + sd) / (2.0 * a);
+      if (t < 0.0) {
+          return false;
+      }
     }
 
     return true;
@@ -387,7 +388,7 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
         for (int p = 0; p < min(particleCount, 500); p++) {
             float t;
             vec4 particleColor;
- if (intersectParticle(currentPos, ray_step, particles[p].position, particles[p].size, t, particleColor)) {
+            if (intersectParticle(currentPos, ray_step, particles[p].position, particles[p].size, t, particleColor)) {
                 if (t < closestParticleT) {
                     closestParticleT = t;
                     closestParticleColor = particles[p].color;
