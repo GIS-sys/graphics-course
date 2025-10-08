@@ -50,11 +50,14 @@ private:
 
   etna::GraphicsPipeline pipeline;
   etna::GraphicsPipeline computePipeline;
+  etna::GraphicsPipeline scenePipeline;
   etna::Image image;
   etna::Image computeImage;
+  etna::Image sceneImage;
   etna::Sampler sampler;
   etna::Sampler computeSampler;
 
   int objectsAmount = 5;
   int mouseControlType = 0;
+  int aaMode = 0;
 };

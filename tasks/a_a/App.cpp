@@ -74,6 +74,13 @@ App::App()
   });
   computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.addressMode = vk::SamplerAddressMode::eMirroredRepeat, .name = "computeSampler"});
 
+  sceneImage = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
+    .name = "scene_image",
+    .format = vkWindow->getCurrentFormat(),
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment,
+  });
+
   etna::create_program(
     "shader",
     {
@@ -90,6 +97,18 @@ App::App()
         },
     }
   );
+
+  etna::create_program("scene",
+    {
+      A_A_SHADERS_ROOT "toy.vert.spv",
+      A_A_SHADERS_ROOT "toy.frag.spv"
+    }
+  );
+  scenePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("scene", etna::GraphicsPipeline::CreateInfo {
+      .fragmentShaderOutput = {
+        .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+      }
+    });
 
   int width;
   int height;
@@ -171,6 +190,9 @@ void App::drawFrame()
         "Look around",
     };
     ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
+
+    static const char* aaItems[] = {"No AA", "FXAA"};
+    ImGui::Combo("Anti-Aliasing", &aaMode, aaItems, IM_ARRAYSIZE(aaItems));
 
     ImGui::NewLine();
 
@@ -284,36 +306,30 @@ void App::drawFrame()
 
 
 
+      // Render scene to sceneImage
       {
-      auto simpleMaterialInfo = etna::get_shader_program("shader");
-      auto set2 = etna::create_descriptor_set(
-        simpleMaterialInfo.getDescriptorLayoutId(0),
-        currentCmdBuf,
-        {
-              etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-              etna::Binding{1,
-                image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+        etna::RenderTargetState state{currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, {{sceneImage.get(), sceneImage.getView({})}}, {}};
+        auto sceneMaterialInfo = etna::get_shader_program("scene");
+        auto set = etna::create_descriptor_set(
+          sceneMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          });
 
-      etna::RenderTargetState renderTargets{
-        currentCmdBuf,
-        {{0, 0}, {resolution.x, resolution.y}},
-        {{.image = backbuffer, .view = backbufferView}},
-        {}
-      };
-
-      vk::DescriptorSet vkSet2 = set2.getVkSet();
-      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
-      currentCmdBuf.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline.getVkPipelineLayout(),
-        0, 1,
-        &vkSet2,
-        0, nullptr);
-
-      currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
-
-      currentCmdBuf.draw(3, 1, 0, 0);
+        currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, scenePipeline.getVkPipeline());
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          scenePipeline.getVkPipelineLayout(),
+          0, 1,
+          &vkSet,
+          0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(scenePipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+        currentCmdBuf.draw(3, 1, 0, 0);
       }
+
 
       {
         ImDrawData* pDrawData = ImGui::GetDrawData();
