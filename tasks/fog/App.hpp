@@ -23,19 +23,19 @@ struct ParticleData {
 
 struct Constants
 {
+  glm::vec4 ambientLight;
   glm::uvec2 res;
   glm::uvec2 cursor;
   float time;
-  int objectsAmount;
-  int mouseControlType;
-  int particleCount;
   float fogGeneralDensity;
-  int fogDivisions;
-  int fogEnabled;
-  glm::vec3 ambientLight;
   float diffuseVal;
   float specPow;
   float specVal;
+  int objectsAmount;
+  int mouseControlType;
+  int particleCount;
+  int fogDivisions;
+  int fogEnabled;
 };
 
 class App

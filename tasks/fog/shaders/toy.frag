@@ -7,19 +7,19 @@ layout(location = 0) out vec4 fragColor;
 
 layout(push_constant) uniform params
 {
+  vec4 ambientLight;
   uvec2 iResolution;
   uvec2 iMouse;
   float iTime;
-  int objectsAmount;
-  int mouseControlType;
-  int particleCount;
   float fogGeneralDensity;
-  int fogDivisions;
-  int fogEnabled;
-  vec3 ambientLight;
   float diffuseVal;
   float specPow;
   float specVal;
+  int objectsAmount;
+  int mouseControlType;
+  int particleCount;
+  int fogDivisions;
+  int fogEnabled;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
@@ -321,8 +321,7 @@ vec3 get_color(in vec3 point, in vec3 ray) {
     vec3 norm = get_normal(point);
     vec3 mirrored_ray = -mirror(ray, norm);
     // ambient
-    //vec3 result = ambientLight;
-    vec3 result = vec3(0.0, 0.0, 0.0);
+    vec3 result = ambientLight.xyz;
     // diffuse
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];

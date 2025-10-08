@@ -277,7 +277,7 @@ void App::drawGui() {
     ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
     if (ImGui::CollapsingHeader("Light")) {
-        ImGui::SliderFloat3("Ambient Light", &ambientLight.x, 0.0f, 1.0f);
+        ImGui::SliderFloat3("Ambient Light", &ambientLight[0], 0.0f, 1.0f);
         ImGui::SliderFloat("Diffuse Val", &diffuseVal, 0.0f, 1.0f);
         ImGui::SliderFloat("Specular Power", &specPow, 0.0f, 50.0f);
         ImGui::SliderFloat("Specular Value", &specVal, 0.0f, 1.0f);
@@ -382,19 +382,19 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
   double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
 
   Constants constants {
+    .ambientLight = {ambientLight, 1.0},
     .res = res,
     .cursor = cursor,
     .time = (float)time,
-    .objectsAmount = objectsAmount,
-    .mouseControlType = mouseControlType,
-    .particleCount = (int)particleData.size(),
     .fogGeneralDensity = fogGeneralDensity,
-    .fogDivisions = fogDivisions,
-    .fogEnabled = fogEnabled,
-    .ambientLight = ambientLight,
     .diffuseVal = diffuseVal,
     .specPow = specPow,
     .specVal = specVal,
+    .objectsAmount = objectsAmount,
+    .mouseControlType = mouseControlType,
+    .particleCount = (int)particleData.size(),
+    .fogDivisions = fogDivisions,
+    .fogEnabled = fogEnabled,
   };
 
   ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
@@ -521,19 +521,19 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
     double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
 
     Constants constants {
+        .ambientLight = {ambientLight, 1.0},
         .res = res,
         .cursor = cursor,
         .time = (float)time,
-        .objectsAmount = objectsAmount,
-        .mouseControlType = mouseControlType,
-        .particleCount = (int)particleData.size(),
         .fogGeneralDensity = fogGeneralDensity,
-        .fogDivisions = fogDivisions,
-        .fogEnabled = fogEnabled,
-        .ambientLight = ambientLight,
         .diffuseVal = diffuseVal,
         .specPow = specPow,
         .specVal = specVal,
+        .objectsAmount = objectsAmount,
+        .mouseControlType = mouseControlType,
+        .particleCount = (int)particleData.size(),
+        .fogDivisions = fogDivisions,
+        .fogEnabled = fogEnabled,
     };
 
     // Create descriptor set for particle shader - use mainRenderImage as input
