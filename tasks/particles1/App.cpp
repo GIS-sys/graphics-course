@@ -20,12 +20,13 @@ void App::InitEmitters() {
     particleSystem = std::make_unique<ParticleSystem>();
 
     // Create 3 emitters at different positions
-    emitterParams.reset1();
+    emitterParams.resetN(0);
     particleSystem->addEmitter(emitterParams);
-    emitterParams.reset2();
+    emitterParams.resetN(1);
     particleSystem->addEmitter(emitterParams);
-    emitterParams.reset3();
+    emitterParams.resetN(2);
     particleSystem->addEmitter(emitterParams);
+    emitterParams.resetN(0);
 
     lastFrameTime = std::chrono::steady_clock::now();
 }
@@ -276,7 +277,7 @@ void App::drawGui() {
     ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
     if (ImGui::CollapsingHeader("Particle System", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -5.0f, 5.0f);
+        ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -50.0f, 50.0f);
         ImGui::SliderFloat("Spawn Rate", &emitterParams.spawnRate, 1.0f, 100.0f);
         ImGui::SliderFloat("Particle Lifetime", &emitterParams.particleLifetime, 0.1f, 5.0f);
         ImGui::SliderFloat("Initial Speed", &emitterParams.initialSpeed, 0.1f, 10.0f);
@@ -287,8 +288,10 @@ void App::drawGui() {
         ImGui::ColorEdit4("End Color", &emitterParams.endColor.x);
         ImGui::Checkbox("Gravity Enabled", &emitterParams.gravityEnabled);
         if (ImGui::Button("Update All Emitters")) {
+            int i = 0;
             for (auto& emitter : particleSystem->getEmitters()) {
-                emitter->setParams(emitterParams);
+                emitter->setParams(emitterParams.as(i));
+                ++i;
             }
         }
     }

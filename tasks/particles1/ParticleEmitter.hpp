@@ -20,31 +20,27 @@ public:
         bool gravityEnabled;
 
         void reset() {
-          position = glm::vec3{2.0f, 3.0f, 2.0f};
-          spawnRate = 3.0f;
+          position = glm::vec3{-20.0f, 3.0f, 5.0f};
+          spawnRate = 10.0f;
           particleLifetime = 3.0f;
-          initialSpeed = 2.0f;
+          initialSpeed = 6.0f;
           velocityVariation = glm::vec3{0.5f, 0.5f, 0.5f};
           startSize = 0.75f;
-          endSize = 0.05f;
+          endSize = 0.4f;
           startColor = glm::vec4{1.0f, 0.2f, 0.2f, 1.0f};
           endColor = glm::vec4{0.2f, 1.0f, 0.2f, 0.0f};
           gravityEnabled = true;
         }
 
-        void reset1() {
+        void resetN(int N) {
             reset();
-            position += glm::vec3(-20.0f, 0.0f, 0.0f);
+            *this = as(N);
         }
 
-        void reset2() {
-            reset();
-            position += glm::vec3(0.0f, 0.0f, 0.0f);
-        }
-
-        void reset3() {
-            reset();
-            position += glm::vec3(20.0f, 0.0f, 0.0f);
+        EmitterParams as(int N) {
+            EmitterParams other(*this);
+            other.position += glm::vec3(20.0f, 0.0f, 0.0f) * float(N);
+            return other;
         }
     };
 

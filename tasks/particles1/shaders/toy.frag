@@ -369,11 +369,12 @@ bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float part
 vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
     float SDF_STEP = 0.8;
     float MAX_STEP = 1000.0;
-    float MIN_STEP = 0.001;
+    float MIN_STEP = 0.0001;
 
     vec3 currentPos = position;
     vec3 accumulatedColor = vec3(0.0);
     float accumulatedAlpha = 0.0;
+    float accumulatedSteps = 0.0;
     vec3 ray_step = ray / length(ray);
 
     for (int i = 0; i < 500; ++i) {
@@ -415,6 +416,7 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
 
             // Continue tracing from just beyond the particle
             currentPos = hitPos + ray_step * 0.01;
+            accumulatedSteps += 0.01 + closestParticleT;;
 
             if (accumulatedAlpha > 0.99) {
                 hit = true;
@@ -426,8 +428,9 @@ vec3 trace_transparent(vec3 position, vec3 ray, out bool hit) {
         else {
             // No hit, continue marching
             float step_size = min(sdf_dist, closestParticleT);
+            accumulatedSteps += step_size;;
 
-            if (step_size > MAX_STEP) {
+            if (accumulatedSteps > MAX_STEP) {
                 hit = false;
                 return accumulatedColor;
             }
