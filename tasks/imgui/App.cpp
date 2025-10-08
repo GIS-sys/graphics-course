@@ -9,7 +9,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <chrono>
-#include <iostream>
 
 #include <imgui.h>
 #include "gui/ImGuiRenderer.hpp"
@@ -239,12 +238,24 @@ void App::drawFrame()
       ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
       {
-        etna::RenderTargetState state{currentCmdBuf, {{}, {128, 128}}, {{image.get(), image.getView({})}}, {}};
-        etna::get_shader_program("local_shadertoy2_texture");
+        etna::RenderTargetState state{currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, {{computeImage.get(), computeImage.getView({})}}, {}};
+        auto simpleMaterialInfo = etna::get_shader_program("local_shadertoy2_texture");
+        auto set = etna::create_descriptor_set(
+          simpleMaterialInfo.getDescriptorLayoutId(0),
+          currentCmdBuf,
+          {
+            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+          });
 
         currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, computePipeline.getVkPipeline());
-        //currentCmdBuf.bindDescriptorSets(
-        //  vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+        vk::DescriptorSet vkSet = set.getVkSet();
+        currentCmdBuf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics,
+          computePipeline.getVkPipelineLayout(),
+          0, 1,
+          &vkSet,
+          0, nullptr);
+        currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(computePipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
         currentCmdBuf.draw(3, 1, 0, 0);
       }
 
@@ -297,7 +308,7 @@ void App::drawFrame()
         pipeline.getVkPipelineLayout(),
         0, 1,
         &vkSet2,
-        0, 0);
+        0, nullptr);
 
       currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
 

@@ -9,7 +9,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <chrono>
-#include <iostream>
 
 
 App::App()
@@ -131,6 +130,12 @@ App::App()
     &channels,
     STBI_rgb_alpha);
   channels = 4; // because we are using STBI flag
+
+  if (!loaded) {
+    // Error loading texture: do not create image, do not continue
+    fprintf(stderr, "[error] Failed to load texture: %s\n", A_A_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png");
+    throw std::runtime_error("Failed to load texture");
+  }
 
   image = etna::get_context().createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{(unsigned int)width, (unsigned int)height, 1},
