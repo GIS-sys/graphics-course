@@ -78,4 +78,7 @@ private:
     glm::vec3 cameraPos;
     float padding;
   };
+
+  etna::Image mainRenderImage;  // Add this line
+  etna::Sampler mainRenderSampler; // Add this line
 };

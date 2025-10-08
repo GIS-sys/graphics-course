@@ -125,6 +125,20 @@ App::App()
   });
   computeSampler = etna::Sampler(etna::Sampler::CreateInfo{.addressMode = vk::SamplerAddressMode::eMirroredRepeat, .name = "computeSampler"});
 
+  // Add this - create main render image
+  mainRenderImage = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
+    .name = "main_render_image",
+    .format = vkWindow->getCurrentFormat(),
+    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
+  });
+  // Add this - create sampler for main render image
+  mainRenderSampler = etna::Sampler(etna::Sampler::CreateInfo{
+    .addressMode = vk::SamplerAddressMode::eClampToEdge, 
+    .name = "mainRenderSampler"
+  });
+
+
   etna::create_program(
     "shader",
     {
@@ -328,30 +342,17 @@ void App::drawFrame()
     }
 }
 
-void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView& backbufferView)
+void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& backbuffer, vk::ImageView&)
 {
-  // First of all, we need to "initialize" th "backbuffer", aka the current swapchain
-  // image, into a state that is appropriate for us working with it. The initial state
-  // is considered to be "undefined" (aka "I contain trash memory"), by the way.
-  // "Transfer" in vulkanese means "copy or blit".
-  // Note that Etna sometimes calls this for you to make life simpler, read Etna's code!
+  // Initialize backbuffer
   etna::set_state(
     currentCmdBuf,
     backbuffer,
-    // We are going to use the texture at the transfer stage...
     vk::PipelineStageFlagBits2::eTransfer,
-    // ...to transfer-write stuff into it...
     vk::AccessFlagBits2::eTransferWrite,
-    // ...and want it to have the appropriate layout.
     vk::ImageLayout::eTransferDstOptimal,
     vk::ImageAspectFlagBits::eColor);
-  // The set_state doesn't actually record any commands, they are deferred to
-  // the moment you call flush_barriers.
-  // As with set_state, Etna sometimes flushes on it's own.
-  // Usually, flushes should be placed before "action", i.e. compute dispatches
-  // and blit/copy operations.
   etna::flush_barriers(currentCmdBuf);
-
 
   glm::uvec2 res {resolution.x, resolution.y};
   glm::uvec2 cursor {osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
@@ -365,95 +366,96 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     .mouseControlType = mouseControlType,
   };
 
-
-
   ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
 
+  // First, render the texture to computeImage
   {
-    etna::RenderTargetState state{currentCmdBuf, {{}, {128, 128}}, {{image.get(), image.getView({})}}, {}};
-    etna::get_shader_program("local_shadertoy2_texture");
+    etna::set_state(
+      currentCmdBuf,
+      computeImage.get(),
+      vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+      vk::AccessFlagBits2::eColorAttachmentWrite,
+      vk::ImageLayout::eColorAttachmentOptimal,
+      vk::ImageAspectFlagBits::eColor);
+    etna::flush_barriers(currentCmdBuf);
 
+    etna::RenderTargetState textureState{
+      currentCmdBuf, 
+      {{0, 0}, {resolution.x, resolution.y}}, 
+      {{computeImage.get(), computeImage.getView({})}}, 
+      {}
+    };
+    
     currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, computePipeline.getVkPipeline());
-    //currentCmdBuf.bindDescriptorSets(
-    //  vk::PipelineBindPoint::eGraphics, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
     currentCmdBuf.draw(3, 1, 0, 0);
   }
 
+  // Transition images for main shader
   etna::set_state(
     currentCmdBuf,
     computeImage.get(),
-    // We are going to use the texture at the transfer stage...
     vk::PipelineStageFlagBits2::eFragmentShader,
-    // ...to transfer-read stuff from it...
     vk::AccessFlagBits2::eShaderRead,
-    // ...and want it to have the appropriate layout.
     vk::ImageLayout::eShaderReadOnlyOptimal,
     vk::ImageAspectFlagBits::eColor);
   etna::set_state(
     currentCmdBuf,
     image.get(),
-    // We are going to use the texture at the transfer stage...
     vk::PipelineStageFlagBits2::eFragmentShader,
-    // ...to transfer-read stuff from it...
     vk::AccessFlagBits2::eShaderRead,
-    // ...and want it to have the appropriate layout.
     vk::ImageLayout::eShaderReadOnlyOptimal,
     vk::ImageAspectFlagBits::eColor);
-
-  etna::flush_barriers(currentCmdBuf);
-
-
-
-  {
-  auto simpleMaterialInfo = etna::get_shader_program("shader");
-  auto set2 = etna::create_descriptor_set(
-    simpleMaterialInfo.getDescriptorLayoutId(0),
-    currentCmdBuf,
-    {
-          etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-          etna::Binding{1,
-            image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
-
-  etna::RenderTargetState renderTargets{
-    currentCmdBuf,
-    {{0, 0}, {resolution.x, resolution.y}},
-    {{.image = backbuffer, .view = backbufferView}},
-    {}
-  };
-
-  vk::DescriptorSet vkSet2 = set2.getVkSet();
-  currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
-  currentCmdBuf.bindDescriptorSets(
-    vk::PipelineBindPoint::eGraphics,
-    pipeline.getVkPipelineLayout(),
-    0, 1,
-    &vkSet2,
-    0, 0);
-
-  currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
-
-  currentCmdBuf.draw(3, 1, 0, 0);
-  }
-
-  // At the end of "rendering", we are required to change how the pixels of the
-  // swpchain image are laid out in memory to something that is appropriate
-  // for presenting to the window (while preserving the content of the pixels!).
+    
+  // Prepare mainRenderImage for rendering
   etna::set_state(
     currentCmdBuf,
-    backbuffer,
-    // This looks weird, but is correct. Ask about it later.
-vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-    {},
-    vk::ImageLayout::ePresentSrcKHR,
-    vk::ImageAspectFlagBits::eColor);
-  etna::set_state(
-    currentCmdBuf,
-    backbuffer,
+    mainRenderImage.get(),
     vk::PipelineStageFlagBits2::eColorAttachmentOutput,
     vk::AccessFlagBits2::eColorAttachmentWrite,
     vk::ImageLayout::eColorAttachmentOptimal,
     vk::ImageAspectFlagBits::eColor);
-  // And of course flush the layout transition.
+  etna::flush_barriers(currentCmdBuf);
+
+  // Now render the main scene to mainRenderImage
+  {
+    auto simpleMaterialInfo = etna::get_shader_program("shader");
+    auto set2 = etna::create_descriptor_set(
+      simpleMaterialInfo.getDescriptorLayoutId(0),
+      currentCmdBuf,
+      {
+            etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
+            etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+      });
+
+    etna::RenderTargetState renderTargets{
+      currentCmdBuf,
+      {{0, 0}, {resolution.x, resolution.y}},
+      {{mainRenderImage.get(), mainRenderImage.getView({})}},
+      {}
+    };
+
+    vk::DescriptorSet vkSet2 = set2.getVkSet();
+    currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getVkPipeline());
+    currentCmdBuf.bindDescriptorSets(
+      vk::PipelineBindPoint::eGraphics,
+      pipeline.getVkPipelineLayout(),
+      0, 1,
+      &vkSet2,
+      0, 0);
+
+    currentCmdBuf.pushConstants<vk::DispatchLoaderDynamic>(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(constants), &constants);
+
+    currentCmdBuf.draw(3, 1, 0, 0);
+  }
+
+  // Transition mainRenderImage to shader read for particle stage
+  etna::set_state(
+    currentCmdBuf,
+    mainRenderImage.get(),
+    vk::PipelineStageFlagBits2::eFragmentShader,
+    vk::AccessFlagBits2::eShaderRead,
+    vk::ImageLayout::eShaderReadOnlyOptimal,
+    vk::ImageAspectFlagBits::eColor);
   etna::flush_barriers(currentCmdBuf);
 }
 
@@ -471,16 +473,7 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
 {
     ETNA_PROFILE_GPU(currentCmdBuf, renderParticles);
 
-    // First, transition the computeImage to shader read layout for use as input texture
-    etna::set_state(
-        currentCmdBuf,
-        computeImage.get(),
-        vk::PipelineStageFlagBits2::eFragmentShader,
-        vk::AccessFlagBits2::eShaderRead,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        vk::ImageAspectFlagBits::eColor);
-    
-    // Ensure backbuffer is in correct layout for color attachment
+    // Ensure backbuffer is ready for writing
     etna::set_state(
         currentCmdBuf,
         backbuffer,
@@ -503,16 +496,16 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         .mouseControlType = mouseControlType,
     };
 
-    // Create descriptor set for particle shader - use computeImage as input texture
+    // Create descriptor set for particle shader - use mainRenderImage as input
     auto particleMaterialInfo = etna::get_shader_program("particle");
     auto particleSet = etna::create_descriptor_set(
         particleMaterialInfo.getDescriptorLayoutId(0),
         currentCmdBuf,
         {
-            etna::Binding{0, computeImage.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+            etna::Binding{0, mainRenderImage.genBinding(mainRenderSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
         });
 
-    // Render fullscreen quad with particle shader
+    // Render fullscreen quad with particle shader to backbuffer
     etna::RenderTargetState renderTargets{
         currentCmdBuf,
         {{0, 0}, {resolution.x, resolution.y}},
@@ -535,5 +528,15 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         0, sizeof(constants), &constants);
 
     currentCmdBuf.draw(3, 1, 0, 0);
+
+    // Transition backbuffer to present layout
+    etna::set_state(
+        currentCmdBuf,
+        backbuffer,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        {},
+        vk::ImageLayout::ePresentSrcKHR,
+        vk::ImageAspectFlagBits::eColor);
+    etna::flush_barriers(currentCmdBuf);
 }
 
