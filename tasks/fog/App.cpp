@@ -308,7 +308,7 @@ void App::drawGui() {
 
     if (ImGui::CollapsingHeader("Volumetric Fog", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Checkbox("Enabled", &fogEnabled);
-        ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 2.0f);
+        ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 0.9f);
         ImGui::SliderInt("Ray Steps", &fogDivisions, 8, 128);
         ImGui::SliderFloat("Wind Strength", &fogWindStrength, 0.01, 30.0);
         ImGui::SliderFloat("Wind Speed", &fogWindSpeed, 0.01, 30.0);
@@ -317,6 +317,7 @@ void App::drawGui() {
     }
 
     if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Moving Light Enabled", &lightMovementEnabled);
         ImGui::SliderFloat("Hole Radius", &holeRadius, 0.01f, 10.0f);
         ImGui::SliderFloat("Hole Border Length", &holeBorderLength, 10.0, 1000.0);
         ImGui::SliderFloat("Hole Border Width", &holeBorderWidth, 5.0, 1000.0);
@@ -416,6 +417,7 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     .particleCount = (int)particleData.size(),
     .fogDivisions = fogDivisions,
     .fogEnabled = fogEnabled,
+    .lightMovementEnabled = lightMovementEnabled,
   };
 
   ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
@@ -571,6 +573,7 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         .particleCount = (int)particleData.size(),
         .fogDivisions = fogDivisions,
         .fogEnabled = fogEnabled,
+        .lightMovementEnabled = lightMovementEnabled,
     };
 
     // Create descriptor set for particle shader - use mainRenderImage as input
@@ -693,6 +696,7 @@ void App::updateFogTexture(vk::CommandBuffer& cmdBuf) {
         .particleCount = (int)particleData.size(),
         .fogDivisions = fogDivisions,
         .fogEnabled = fogEnabled,
+        .lightMovementEnabled = lightMovementEnabled,
     };
 
     cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, fogTexturePipeline.getVkPipeline());

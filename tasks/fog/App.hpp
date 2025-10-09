@@ -42,6 +42,7 @@ struct Constants
   int particleCount;
   int fogDivisions;
   int fogEnabled;
+  bool lightMovementEnabled;
 };
 
 class App
@@ -125,5 +126,7 @@ private:
   float holeBorderLength = 100.0;
   float holeBorderWidth = 20.0;
   glm::vec4 holeDelta{-30.0, 20.0, 30.0, 0.0};
+
+  bool lightMovementEnabled = true;
 };
 

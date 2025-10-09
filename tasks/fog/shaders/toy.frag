@@ -26,6 +26,7 @@ layout(push_constant) uniform params
     int particleCount;
     int fogDivisions;
     int fogEnabled;
+    bool lightMovementEnabled;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
@@ -422,7 +423,7 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit, out float distance
 
 
 
-vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)  // TODO
+vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)
 {
     const float FOG_FULL_DISTANCE = 1000;
     if (distance < 0) distance = 100000;
@@ -451,7 +452,7 @@ vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)  // TODO
 
 void main()
 {
-    LIGHTS_DIRECTIONAL_DIRECTION[0] += vec3(cos(iTime * 4) / 4, 0, 0);
+    if (lightMovementEnabled) LIGHTS_DIRECTIONAL_DIRECTION[0] += vec3(cos(iTime * 4) / 4, 0, 0);
 
     vec2 fragCoord = gl_FragCoord.xy;
 

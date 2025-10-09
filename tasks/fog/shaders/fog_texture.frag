@@ -23,6 +23,7 @@ layout(push_constant) uniform params {
     int particleCount;
     int fogDivisions;
     int fogEnabled;
+    bool lightMovementEnabled;
 } pc;
 
 // Noise functions for procedural fog
