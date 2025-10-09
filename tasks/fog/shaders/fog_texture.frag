@@ -66,11 +66,33 @@ float fogDensity(vec3 pos, float time) {
 
 void main() {
     vec2 fragCoord = gl_FragCoord.xy;
-    vec2 uv = fragCoord / vec2(pc.iResolution) * 2.0 - 1.0;
-    uv.x *= float(pc.iResolution.x) / float(pc.iResolution.y);
 
-    // Simple ray direction (could be improved with proper camera)
-    vec3 rayDir = normalize(vec3(uv, 1.0));
+    // position
+    vec2 mouse = vec2(0.0, 0.0);
+    vec3 position = vec3(0.0, 0.0, 0.0);
+    if (pc.mouseControlType == 0) {
+        mouse = vec2(0.333, 0.0);
+    } else if (pc.mouseControlType == 1) {
+        mouse = pc.iMouse.xy * 1.0f / pc.iResolution.xy - vec2(0.0, 0.5);
+        position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
+    } else if (pc.mouseControlType == 2) {
+        mouse = pc.iMouse.xy * 1.0f / pc.iResolution.xy - vec2(0.0, 0.5);
+    }
+    // ray
+    vec2 uv = fragCoord / pc.iResolution.xy * 2.0 - 1.0;
+    uv.x *= pc.iResolution.x / pc.iResolution.y;
+    vec3 ray = vec3(uv[0], uv[1], 1.0);
+    ray /= length(ray);
+    mat3 camera = mat3(
+        1, 0, 0,
+        0, cos(-mouse.y * 6.28), -sin(-mouse.y * 6.28),
+        0, sin(-mouse.y * 6.28), cos(-mouse.y * 6.28)
+    ) * mat3(
+        cos(mouse.x * 6.28), 0, sin(mouse.x * 6.28),
+        0, 1, 0,
+        -sin(mouse.x * 6.28), 0, cos(mouse.x * 6.28)
+    );
+    ray *= -camera;
 
     // God rays simulation
     vec3 lightDir = normalize(vec3(0.3, 1.0, 0.2)); // Sun direction
@@ -84,7 +106,7 @@ void main() {
     float transmittance = 1.0;
 
     for (int i = 0; i < steps; i++) {
-        rayPos += rayDir * stepSize;
+        rayPos += ray * stepSize;
 
         float density = fogDensity(rayPos, pc.iTime);
 
@@ -102,7 +124,7 @@ void main() {
     }
 
     // Apply light direction factor
-    float lightFactor = max(0.0, dot(rayDir, lightDir)) * 2.0;
+    float lightFactor = max(0.0, dot(ray, lightDir)) * 2.0;
     accumulatedLight *= lightFactor;
 
     // Output fog color (soft white/blue)
