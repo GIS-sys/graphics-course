@@ -331,7 +331,6 @@ void App::drawFrame()
         // We are done recording GPU commands now and we can send them to be executed by the GPU.
         auto renderingDone =
             commandManager->submit(std::move(currentCmdBuf), std::move(backbufferAvailableSem));
-        static_cast<void>(etna::get_context().getDevice().waitIdle());
 
         // Finally, present the backbuffer the screen
         const bool presented = vkWindow->present(std::move(renderingDone), backbufferView);
