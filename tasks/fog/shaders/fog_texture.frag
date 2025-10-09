@@ -12,6 +12,7 @@ layout(push_constant) uniform params {
     float diffuseVal;
     float specPow;
     float specVal;
+    float fogWindStrength;
     int objectsAmount;
     int mouseControlType;
     int particleCount;
@@ -51,7 +52,7 @@ float fbm(vec2 p) {
 // Fog density function with time animation
 float fogDensity(vec3 pos, float time) {
     // Animate with wind
-    vec2 wind = vec2(time * 0.1, time * 0.05);
+    vec2 wind = vec2(time * 0.1, time * 0.05) * pc.fogWindStrength;
 
     // Base density with height falloff
     float heightFactor = exp(-pos.y * 0.1);
@@ -105,7 +106,7 @@ void main() {
     accumulatedLight *= lightFactor;
 
     // Output fog color (soft white/blue)
-    vec3 fogColor = mix(vec3(0.8, 0.9, 1.0), vec3(1.0), accumulatedLight * 0.5);
+    vec3 fogColor = mix(vec3(0.8, 0.3, 1.0), vec3(1.0), accumulatedLight * 0.5);
     outColor = vec4(fogColor, accumulatedLight);
 }
 

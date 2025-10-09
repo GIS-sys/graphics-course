@@ -7,19 +7,20 @@ layout(location = 0) out vec4 fragColor;
 
 layout(push_constant) uniform params
 {
-  vec4 ambientLight;
-  uvec2 iResolution;
-  uvec2 iMouse;
-  float iTime;
-  float fogGeneralDensity;
-  float diffuseVal;
-  float specPow;
-  float specVal;
-  int objectsAmount;
-  int mouseControlType;
-  int particleCount;
-  int fogDivisions;
-  int fogEnabled;
+    vec4 ambientLight;
+    uvec2 iResolution;
+    uvec2 iMouse;
+    float iTime;
+    float fogGeneralDensity;
+    float diffuseVal;
+    float specPow;
+    float specVal;
+    float fogWindStrength;
+    int objectsAmount;
+    int mouseControlType;
+    int particleCount;
+    int fogDivisions;
+    int fogEnabled;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
@@ -452,54 +453,6 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit, out float distance
 }
 
 
-
-float rand(vec2 c){
-    return fract(sin(dot(c.xy, vec2(12.7898,78.233)) + cos(dot(c.xy, vec2(-12315.5767, 3524.56)))) * 43718.5453);
-}
-
-float noise(vec2 p){
-    vec2 ij = floor(p);
-    vec2 xy = fract(p);
-    xy = 3.*xy*xy-2.*xy*xy*xy;
-    float a = rand((ij+vec2(0.,0.)));
-    float b = rand((ij+vec2(1.,0.)));
-    float c = rand((ij+vec2(0.,1.)));
-    float d = rand((ij+vec2(1.,1.)));
-    float x1 = mix(a, b, xy.x);
-    float x2 = mix(c, d, xy.x);
-    return clamp(mix(x1, x2, xy.y), 0., 1.);
-}
-
-float fog(vec3 pos, float time) {
-    vec2 fogUV = pos.xz * 0.02; // Adjust scale as needed
-    fogUV += time * 0.05;
-    float fogDensity = texture(fogTex, fogUV).r;
-    float heightFalloff = exp(-0.1 * max(0.0, pos.y));
-    return fogDensity * heightFalloff;
-}
-
-
-
-
-vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)  // TODO
-{
-    const float FOG_FULL_DISTANCE = 1000;
-    if (distance < 0) distance = 100000;
-
-    float fog_divisions = min(128, fogDivisions);
-
-    vec3 result_color = vec3(0.0, 0.0, 0.0);
-    float stepf = distance / fog_divisions;
-    for (int i = 0; i < min(128, fog_divisions); ++i) {
-        vec3 fog_spot = position + (i + 0.5) * stepf * ray;
-        for (int j = 0; j < LIGHTS_DIRECTIONAL_AMOUNT; ++j) {
-            result_color = result_color + get_light_including_shadows(j, fog_spot) / (fog_divisions * 1.0) * (1.0 + dot(LIGHTS_DIRECTIONAL_DIRECTION[j], ray));
-        }
-    }
-    float fog_density = fogGeneralDensity * fog(ray, iTime);
-    //return mix(color, result_color, fog_density * max(0.0, min(1.0, distance / FOG_FULL_DISTANCE)));
-    return color + clamp(result_color * fog_density * max(0.0, min(1.0, distance / FOG_FULL_DISTANCE)), 0.0, 0.9);
-}
 
 // Remove old fog function and replace with:
 vec3 apply_volumetric_fog(vec3 color, vec3 position, vec3 ray, float distance) {
