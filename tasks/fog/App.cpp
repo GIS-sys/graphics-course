@@ -320,7 +320,7 @@ void App::drawGui() {
         ImGui::SliderFloat("Hole Radius", &holeRadius, 0.01f, 10.0f);
         ImGui::SliderFloat("Hole Border Length", &holeBorderLength, 10.0, 1000.0);
         ImGui::SliderFloat("Hole Border Width", &holeBorderWidth, 5.0, 1000.0);
-        ImGui::SliderFloat3("Hole Pos Delta", &holeDelta[0], -70.0, 70.0);
+        ImGui::SliderFloat3("Hole Pos Delta", &holeDelta[0], -70.0, 160.0);
     }
 
     ImGui::NewLine();

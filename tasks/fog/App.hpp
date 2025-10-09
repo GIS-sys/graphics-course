@@ -101,8 +101,8 @@ private:
   etna::Sampler mainRenderSampler;
 
   // fog
-  float fogGeneralDensity = 0.2;
-  int fogDivisions = 16;
+  float fogGeneralDensity = 0.8;
+  int fogDivisions = 64;
   bool fogEnabled = true;
 
   // specs

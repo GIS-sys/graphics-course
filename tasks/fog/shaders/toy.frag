@@ -422,22 +422,37 @@ vec4 trace_transparent(vec3 position, vec3 ray, out bool hit, out float distance
 
 
 
-// Remove old fog function and replace with:
-vec3 apply_volumetric_fog(vec3 color, vec3 position, vec3 ray, float distance) {
-    if (fogEnabled == 0) return color;
+vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)  // TODO
+{
+    const float FOG_FULL_DISTANCE = 1000;
+    if (distance < 0) distance = 100000;
 
-    // Sample fog texture with bilinear filtering (automatic with sampler)
+    float fog_divisions = min(128, fogDivisions);
+
+    vec3 result_color = vec3(0.0, 0.0, 0.0);
+    float stepf = distance / fog_divisions;
+    for (int i = 0; i < min(128, fog_divisions); ++i) {
+        vec3 fog_spot = position + (i + 0.5) * stepf * ray;
+        for (int j = 0; j < LIGHTS_DIRECTIONAL_AMOUNT; ++j) {
+            result_color = result_color + get_light_including_shadows(j, fog_spot) / (fog_divisions * 1.0); // * (1.0 + dot(LIGHTS_DIRECTIONAL_DIRECTION[j], ray));
+        }
+    }
+    // get fog texture
     vec2 fogUV = gl_FragCoord.xy / iResolution.xy;
     vec4 fogData = texture(fogTex, fogUV);
 
-    // Blend scene color with fog
-    return mix(color, fogData.rgb, fogData.a * fogGeneralDensity);
+    // calculate total
+    float fog_density = fogGeneralDensity * fogData.a;
+    return mix(color, result_color * fogData.rgb, fog_density);
 }
+
 
 
 
 void main()
 {
+    LIGHTS_DIRECTIONAL_DIRECTION[0] += vec3(cos(iTime * 4) / 4, 0, 0);
+
     vec2 fragCoord = gl_FragCoord.xy;
 
     // position
@@ -479,7 +494,7 @@ void main()
     }
 
     if (fogEnabled == 1)
-        result_color = apply_volumetric_fog(result_color, position, ray, distance);
+        result_color = apply_fog(result_color, position, ray, distance);
     fragColor = vec4(result_color, 1.0);
 }
 
