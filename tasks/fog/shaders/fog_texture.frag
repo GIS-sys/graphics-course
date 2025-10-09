@@ -97,12 +97,12 @@ void main() {
     ray *= -camera;
 
     // God rays simulation
-    vec3 lightDir = normalize(vec3(0.3, 1.0, 0.2)); // Sun direction
+    vec3 lightDir = normalize(vec3(0.3, 1.0, 0.2));
 
     int steps = min(pc.fogDivisions, 64);
-    float stepSize = 50.0 / float(steps); // Max distance 50 units
+    float stepSize = 50.0 / float(steps);
 
-    vec3 rayPos = vec3(0.0, 10.0, 0.0); // Start position above scene
+    vec3 rayPos = vec3(0.0, 0.0, 0.0);
 
     float accumulatedLight = 0.0;
     float transmittance = 1.0;
@@ -111,23 +111,17 @@ void main() {
         rayPos += ray * stepSize;
 
         float density = fogDensity(rayPos, pc.iTime);
-
-        // Light scattering (approximate)
         float scattering = density * stepSize;
-
-        // Accumulate light with transmittance
         accumulatedLight += scattering * transmittance;
 
         // Update transmittance (Beer-Lambert law)
         transmittance *= exp(-density * stepSize);
-
-        // Early exit if transmittance is too low
         if (transmittance < 0.01) break;
     }
 
     // Apply light direction factor
-    //float lightFactor = max(0.0, dot(ray, lightDir)) * 2.0;
-    //accumulatedLight *= lightFactor;
+    // float lightFactor = max(0.0, dot(ray, lightDir)) * 2.0;
+    // accumulatedLight *= lightFactor;
 
     // Output fog color (soft white/blue)
     vec3 fogColor = mix(vec3(0.8, 0.3, 1.0), vec3(1.0), accumulatedLight * 0.5);

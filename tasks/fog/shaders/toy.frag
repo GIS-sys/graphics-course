@@ -16,6 +16,7 @@ layout(push_constant) uniform params
     float specPow;
     float specVal;
     float fogWindStrength;
+    float fogWindSpeed;
     int objectsAmount;
     int mouseControlType;
     int particleCount;

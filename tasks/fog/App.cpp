@@ -311,7 +311,7 @@ void App::drawGui() {
         ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 2.0f);
         ImGui::SliderInt("Ray Steps", &fogDivisions, 8, 128);
         ImGui::SliderFloat("Wind Strength", &fogWindStrength, 0.01, 30.0);
-        ImGui::SliderFloat("Wind Speed", &fogWindStrength, 0.01, 30.0);
+        ImGui::SliderFloat("Wind Speed", &fogWindSpeed, 0.01, 30.0);
         ImGui::Text("Quality: %dx%d", fogTextureResolution.x, fogTextureResolution.y);
         ImGui::Text("Performance: Higher steps = better quality but slower");
     }

@@ -9,19 +9,21 @@ layout(binding = 0) uniform sampler2D inputTexture;
 
 layout(push_constant) uniform params
 {
-  vec4 ambientLight;
-  uvec2 iResolution;
-  uvec2 iMouse;
-  float iTime;
-  float fogGeneralDensity;
-  float diffuseVal;
-  float specPow;
-  float specVal;
-  int objectsAmount;
-  int mouseControlType;
-  int particleCount;
-  int fogDivisions;
-  int fogEnabled;
+    vec4 ambientLight;
+    uvec2 iResolution;
+    uvec2 iMouse;
+    float iTime;
+    float fogGeneralDensity;
+    float diffuseVal;
+    float specPow;
+    float specVal;
+    float fogWindStrength;
+    float fogWindSpeed;
+    int objectsAmount;
+    int mouseControlType;
+    int particleCount;
+    int fogDivisions;
+    int fogEnabled;
 };
 
 void main()
