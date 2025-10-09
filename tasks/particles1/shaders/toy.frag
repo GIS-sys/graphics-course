@@ -10,11 +10,23 @@ layout(push_constant) uniform params
   uvec2 iResolution;
   uvec2 iMouse;
   float iTime;
+  int objectsAmount;
+  int mouseControlType;
+  int particleCount;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
 layout(binding = 1) uniform sampler2D fileTex;
 
+struct Particle {
+    vec3 position;
+    float size;
+    vec4 color;
+};
+
+layout(binding = 2) buffer ParticlesBuffer {
+    Particle particles[];
+};
 
 
 
@@ -150,10 +162,24 @@ float sdf_cheese(in vec3 pos) {
     return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
 }
 
+float sdf_several(in vec3 pos) {
+    vec3 CENTER = vec3(-12, -4, 7);
+    float RADIUS = 3.0;
+    float ENTIRE_LENGTH = 50.0;
+    float deltaBetween = ENTIRE_LENGTH / (objectsAmount + 1);
+    float deltaStart = -ENTIRE_LENGTH / 2 + deltaBetween;
+    float result = sdf_sphere(pos, CENTER, RADIUS);
+    for (int i = 0; i < 4096; ++i) {
+        if (i >= objectsAmount) break;
+        result = min(result, sdf_sphere(pos, CENTER + deltaStart + deltaBetween * i, RADIUS));
+    }
+    return result;
+}
+
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    return mmin6(sdf_wall(pos), sdf_road(pos), /*sdf_ball(pos),*/ sdf_several(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -315,18 +341,123 @@ vec3 get_color(in vec3 point, in vec3 ray) {
     return result;
 }
 
+bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float particleSize, out float t, out vec4 particleColor) {
+    vec3 oc = rayOrigin - particlePos;
+    float a = dot(rayDir, rayDir);
+    float b = 2.0 * dot(oc, rayDir);
+    float c = dot(oc, oc) - particleSize * particleSize;
 
+    float discriminant = b * b - 4.0 * a * c;
 
-// main logic
+    if (discriminant < 0.0) {
+        return false;
+    }
+
+    float sd = sqrt(discriminant);
+    t = (-b - sd) / (2.0 * a);
+    if (t < 0.0) {
+      t = (-b + sd) / (2.0 * a);
+      if (t < 0.0) {
+          return false;
+      }
+    }
+
+    return true;
+}
+
+// Modified trace function to handle particle transparency
+vec4 trace_transparent(vec3 position, vec3 ray, out bool hit) {
+    float SDF_STEP = 0.8;
+    float MAX_STEP = 1000.0;
+    float MIN_STEP = 0.0001;
+
+    vec3 currentPos = position;
+    vec3 accumulatedColor = vec3(0.0);
+    float accumulatedAlpha = 0.0;
+    float accumulatedSteps = 0.0;
+    vec3 ray_step = ray / length(ray);
+
+    for (int i = 0; i < 500; ++i) {
+        // First check SDF
+        float sdf_dist = sdf(currentPos);
+
+        // Check particle collisions
+        float closestParticleT = MAX_STEP;
+        vec4 closestParticleColor = vec4(0.0);
+        int closestParticleIndex = -1;
+
+        for (int p = 0; p < min(particleCount, 500); p++) {
+            float t;
+            vec4 particleColor;
+            if (intersectParticle(currentPos, ray_step, particles[p].position, particles[p].size, t, particleColor)) {
+                if (t < closestParticleT) {
+                    closestParticleT = t;
+                    closestParticleColor = particles[p].color;
+                    closestParticleIndex = p;
+                }
+            }
+        }
+
+        // Determine the closest hit (SDF or particle)
+        if (sdf_dist < MIN_STEP) {
+            // Hit scene geometry
+            hit = true;
+            vec3 sceneColor = get_color(currentPos, ray);
+            return vec4(mix(accumulatedColor, sceneColor, 1.0 - accumulatedAlpha), 1.0);
+        }
+        else if (closestParticleT < sdf_dist && closestParticleT < MAX_STEP) {
+            // Hit a particle
+            vec3 hitPos = currentPos + ray_step * closestParticleT;
+            vec4 particleColor = closestParticleColor;
+
+            // Blend with accumulated color
+            accumulatedColor = accumulatedColor + particleColor.rgb * particleColor.a * (1.0 - accumulatedAlpha);
+            accumulatedAlpha = accumulatedAlpha + particleColor.a * (1.0 - accumulatedAlpha);
+
+            // Continue tracing from just beyond the particle
+            currentPos = hitPos + ray_step * 0.01;
+            accumulatedSteps += 0.01 + closestParticleT;;
+
+            if (accumulatedAlpha > 0.99) {
+                hit = true;
+                return vec4(accumulatedColor, 1.0);
+            }
+
+            continue;
+}
+        else {
+            // No hit, continue marching
+            float step_size = min(sdf_dist, closestParticleT);
+            accumulatedSteps += step_size;;
+
+            if (accumulatedSteps > MAX_STEP) {
+                hit = false;
+                return vec4(accumulatedColor, accumulatedAlpha);
+            }
+
+            currentPos += step_size * ray_step * SDF_STEP;
+        }
+    }
+
+    hit = false;
+    return vec4(accumulatedColor, accumulatedAlpha);
+}
 
 void main()
 {
     vec2 fragCoord = gl_FragCoord.xy;
 
     // position
-    vec2 mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
-    vec3 position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
-    //position *= 0.0;
+    vec2 mouse = vec2(0.0, 0.0);
+    vec3 position = vec3(0.0, 0.0, 0.0);
+    if (mouseControlType == 0) {
+        mouse = vec2(0.333, 0.0);
+    } else if (mouseControlType == 1) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+        position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
+    } else if (mouseControlType == 2) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+    }
     // ray
     vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
     uv.x *= iResolution.x / iResolution.y;
@@ -343,17 +474,15 @@ void main()
     );
     ray *= -camera;
 
+    // Use the new transparent trace function
     vec3 result_color = vec3(0.0, 0.0, 0.0);
-    for (int i = 0; i < 10; ++i) {
-        bool hit = false;
-        vec3 point = trace(position, ray, hit);
-        float current_color_power = pow(2.0, float(-i) * 2.0);
-        if (hit) {
-            vec3 color = clamp_color(get_color(point, ray));
-            result_color += color * current_color_power;
-            position = point - ray * 0.01; // TODO separate sdfs? or how to cast ray
-            ray = -mirror(ray, get_normal(point));
-        }
+    bool hit = false;
+    vec4 color = trace_transparent(position, ray, hit);
+    if (hit) {
+        result_color = vec3(color);
+    } else {
+        result_color = mix(vec3(color), vec3(0.1, 0.1, 0.3), 1 - color.a);
     }
     fragColor = vec4(result_color, 1.0);
 }
+

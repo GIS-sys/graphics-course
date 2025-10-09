@@ -23,26 +23,12 @@ struct ParticleData {
 
 struct Constants
 {
-  glm::vec4 ambientLight;
-  glm::vec4 holeDelta;
   glm::uvec2 res;
   glm::uvec2 cursor;
   float time;
-  float fogGeneralDensity;
-  float diffuseVal;
-  float specPow;
-  float specVal;
-  float fogWindStrength;
-  float fogWindSpeed;
-  float holeRadius;
-  float holeBorderLength;
-  float holeBorderWidth;
   int objectsAmount;
   int mouseControlType;
-  int particleCount;
-  int fogDivisions;
-  int fogEnabled;
-  bool lightMovementEnabled;
+  int particleCount; // Add particle count
 };
 
 class App
@@ -82,8 +68,8 @@ private:
   etna::Sampler sampler;
   etna::Sampler computeSampler;
 
-  int objectsAmount = 2;
-  int mouseControlType = 0;
+  int objectsAmount = 5;
+  int mouseControlType = 2;
 
   void InitEmitters();
   std::unique_ptr<ParticleSystem> particleSystem;
@@ -92,7 +78,7 @@ private:
   glm::vec3 cameraPosition{0.0f, 0.0f, 3.0f};
 
   etna::GraphicsPipeline particlePipeline;
-
+  
   // Add particle storage buffer
   etna::Buffer particleBuffer;
   std::vector<ParticleData> particleData;
@@ -100,34 +86,5 @@ private:
 
   etna::Image mainRenderImage;
   etna::Sampler mainRenderSampler;
-
-  // fog
-  float fogGeneralDensity = 0.8;
-  int fogDivisions = 64;
-  bool fogEnabled = true;
-
-  // specs
-  glm::vec3 ambientLight{0.2, 0.2, 0.2};
-  float diffuseVal = 0.1;
-  float specPow = 20.0;
-  float specVal = 0.8;
-
-  // Fog texture resources
-  void initFogTexturePipeline();
-  void updateFogTexture(vk::CommandBuffer& cmdBuf);
-
-  etna::GraphicsPipeline fogTexturePipeline;
-  etna::Image fogTextureImage;
-  etna::Sampler fogTextureSampler;
-  glm::uvec2 fogTextureResolution;
-  int fogTextureResolutionDecrease = 2;
-  float fogWindStrength = 0.8;
-  float fogWindSpeed = 1.2;
-  float holeRadius = 5.0;
-  float holeBorderLength = 100.0;
-  float holeBorderWidth = 20.0;
-  glm::vec4 holeDelta{-30.0, 20.0, 30.0, 0.0};
-
-  bool lightMovementEnabled = true;
 };
 

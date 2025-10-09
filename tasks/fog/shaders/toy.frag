@@ -7,14 +7,42 @@ layout(location = 0) out vec4 fragColor;
 
 layout(push_constant) uniform params
 {
-  uvec2 iResolution;
-  uvec2 iMouse;
-  float iTime;
+    vec4 ambientLight;
+    vec4 holeDelta;
+    uvec2 iResolution;
+    uvec2 iMouse;
+    float iTime;
+    float fogGeneralDensity;
+    float diffuseVal;
+    float specPow;
+    float specVal;
+    float fogWindStrength;
+    float fogWindSpeed;
+    float holeRadius;
+    float holeBorderLength;
+    float holeBorderWidth;
+    int objectsAmount;
+    int mouseControlType;
+    int particleCount;
+    int fogDivisions;
+    int fogEnabled;
+    bool lightMovementEnabled;
 };
 
 layout(binding = 0) uniform sampler2D colorTex;
 layout(binding = 1) uniform sampler2D fileTex;
 
+struct Particle {
+    vec3 position;
+    float size;
+    vec4 color;
+};
+
+layout(binding = 2) buffer ParticlesBuffer {
+    Particle particles[];
+};
+
+layout(binding = 3) uniform sampler2D fogTex;
 
 
 
@@ -105,55 +133,62 @@ float sdf_box(in vec3 pos, vec3 corner, vec3 up, vec3 right, vec3 far) {
 
 // sdf for objects
 
-float sdf_wall(in vec3 pos) {
-    vec3 CENTER = vec3(0, 45, 0);
-    vec3 NORM = vec3(0, 1, 0);
+float sdf_floor(in vec3 pos) {
+    vec3 CENTER = vec3(0, -40, 0);
+    vec3 NORM = vec3(0, -1, 0);
     return sdf_semispace(pos, CENTER, NORM);
 }
 
-float sdf_road(in vec3 pos) {
-    vec3 CORNER = vec3(-200, 45, -40);
-    vec3 UP = vec3(0, -5, 0);
-    vec3 RIGHT = vec3(0, 0, 80);
-    vec3 FAR = vec3(400, 0, 0);
+float sdf_wall_1(in vec3 pos) {
+    vec3 CORNER = vec3(-holeBorderLength / 2, 0, holeRadius) + holeDelta.xyz;
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(holeBorderLength, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, holeBorderWidth);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
-float sdf_ball(in vec3 pos) {
-    vec3 CENTER = vec3(5, -5, 15);
-    float RADIUS = 3.0;
-    return sdf_sphere(pos, CENTER, RADIUS);
-}
-
-float sdf_melon(in vec3 pos) {
-    vec3 CENTER = vec3(-15, -5, 15);
-    float RADIUS = 5.0;
-    return sdf_sphere(pos, CENTER, RADIUS) + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
-}
-
-float sdf_box(in vec3 pos) {
-    vec3 CORNER = vec3(0, 0, 10);
-    vec3 UP = vec3(8.0, 8.0, 0.0);
-    vec3 RIGHT = vec3(-8.0, 8.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 8.0);
+float sdf_wall_2(in vec3 pos) {
+    vec3 CORNER = vec3(-holeBorderLength / 2, 0, -holeRadius) + holeDelta.xyz;
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(holeBorderLength, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, -holeBorderWidth);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
+float sdf_wall_3(in vec3 pos) {
+    vec3 CORNER = vec3(holeRadius, 0, -holeBorderLength / 2) + holeDelta.xyz;
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(holeBorderWidth, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, holeBorderLength);
+    return sdf_box(pos, CORNER, UP, RIGHT, FAR);
+}
 
-float sdf_cheese(in vec3 pos) {
-    vec3 CORNER = vec3(-13.2, -2.7, 6);
-    vec3 UP = vec3(3.0, 0.0, 1.5);
-    vec3 RIGHT = vec3(0.0, 2.0, 0.0);
-    vec3 FAR = vec3(-1, 0.0, 2.0);
+float sdf_wall_4(in vec3 pos) {
+    vec3 CORNER = vec3(-holeRadius, 0, -holeBorderLength / 2) + holeDelta.xyz;
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(-holeBorderWidth, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, holeBorderLength);
+    return sdf_box(pos, CORNER, UP, RIGHT, FAR);
+}
+
+float sdf_several(in vec3 pos) {
     vec3 CENTER = vec3(-12, -4, 7);
     float RADIUS = 3.0;
-    return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
+    float ENTIRE_LENGTH = 50.0;
+    float deltaBetween = ENTIRE_LENGTH / (objectsAmount + 1);
+    float deltaStart = -ENTIRE_LENGTH / 2 + deltaBetween;
+    float result = 1000000.0;
+    for (int i = 0; i < 4096; ++i) {
+        if (i >= objectsAmount) break;
+        result = min(result, sdf_sphere(pos, CENTER + deltaStart + deltaBetween * i, RADIUS));
+    }
+    return result;
 }
 
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_road(pos), sdf_ball(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    return mmin6(sdf_floor(pos), sdf_wall_1(pos), sdf_wall_2(pos), sdf_wall_3(pos), sdf_wall_4(pos), sdf_several(pos));
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -179,53 +214,29 @@ vec3 get_normal(vec3 point) {
 // colors for objects
 
 vec3 col_wall(in vec3 pos) {
-    //return vec3(1.0, 1.0, 1.0);
     return vec3(texture(colorTex, vec2(remainder(pos.x / 100.0), remainder(pos.z / 100.0))));
 }
 
-vec3 col_road(in vec3 pos) {
-    //return vec3(1.0, 1.0, 0.5);
+vec3 col_several(in vec3 pos) {
     return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
 }
 
-vec3 col_box(in vec3 pos) {
-    // TASK PART 2 - triplanar projection
-    vec3 CORNER = vec3(0, 0, 10);
-    vec3 UP = vec3(8.0, 8.0, 0.0);
-    vec3 RIGHT = vec3(-8.0, 8.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 8.0);
-    vec3 CENTER = CORNER + (UP + RIGHT + FAR) / 2.0;
-
-    vec3 norm = get_normal(pos);
-    vec3 closest_plane_normal = vec3(
-        (norm.x == maxvec3(norm)) ? 1.0 : 0.0,
-        (norm.y == maxvec3(norm)) ? 1.0 : 0.0,
-        (norm.z == maxvec3(norm)) ? 1.0 : 0.0
-    );
-    vec3 pro_base_1 = normalize(vec3(1, 1, 1));
-    vec3 pro_base_2 = cross(pro_base_1, closest_plane_normal);
-    vec3 v_to_pro = pos - CENTER;
-    float texture_x = dot(v_to_pro, pro_base_1) / length(pro_base_1) / 4.0;
-    float texture_y = dot(v_to_pro, pro_base_2) / length(pro_base_2) / 4.0;
-    //return vec3(0.5, 0.0, 0.0);
-    return vec3(texture(fileTex, vec2(texture_x, texture_y)));
+vec3 col_floor(in vec3 pos) {
+    return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
 }
 
 
 // col for scene
 
 vec3 col(in vec3 pos, in vec3 ray) {
-//return get_normal(pos);
     float MIN_STEP = 0.00001;
     float dist = sdf(pos);
-    if (dist == sdf_wall(pos)) {
-        return col_wall(pos);
-    } else if (dist == sdf_road(pos)) {
-        return col_road(pos);
-    } else if (dist == sdf_box(pos)) {
-        return col_box(pos);
+    if (dist == sdf_floor(pos)) {
+        return col_floor(pos);
+    } else if (dist == sdf_several(pos)) {
+        return col_several(pos);
     } else {
-        return vec3(1.0, 1.0, 1.0);
+        return col_wall(pos);
     }
 }
 
@@ -235,18 +246,12 @@ vec3 col(in vec3 pos, in vec3 ray) {
 
 // lights
 
-const int LIGHTS_DIRECTIONAL_AMOUNT = 4;
-vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
-    vec3(0.0, 1.0, 0.0),
-    vec3(0.5, 1.0, 2.0),
-    vec3(-1.0, 1.0, 0.0),
-    vec3(3, 1.0, -2.0)
+const int LIGHTS_DIRECTIONAL_AMOUNT = 1;
+vec3[1] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
+    vec3(0.0, -1.0, 0.3)
 );
-vec3[LIGHTS_DIRECTIONAL_AMOUNT] LIGHTS_DIRECTIONAL_COLOR = vec3[](
-    vec3(0.5),
-    vec3(1.0, 0.0, 0.0) * 0.5,
-    vec3(0.3, 0.3, 0.85) * 0.5,
-    vec3(0.0, 1.0, 0.0) * 0.5
+vec3[1] LIGHTS_DIRECTIONAL_COLOR = vec3[](
+    vec3(0.5)
 );
 
 
@@ -272,41 +277,37 @@ vec3 trace(vec3 position, in vec3 ray, out bool hit) {
     return vec3(0.0);
 }
 
+vec3 get_light_including_shadows(int directional_light_index, vec3 point)  // TODO
+{
+    bool shadow = false;
+    trace(point - LIGHTS_DIRECTIONAL_DIRECTION[directional_light_index] * 0.01, -LIGHTS_DIRECTIONAL_DIRECTION[directional_light_index], shadow);
+    if (shadow) return vec3(0.0);
+    return LIGHTS_DIRECTIONAL_COLOR[directional_light_index];
+}
+
 
 
 // calculating Phong color
 
 vec3 get_color(in vec3 point, in vec3 ray) {
-    vec3 AMBIENT_LIGHT = vec3(0.4, 0.4, 0.4);
-    float DIFFUSE_VAL = 0.3;
-    float SPEC_POW = 20.0;
-    float SPEC_VAL = 0.8;
     vec3 norm = get_normal(point);
     vec3 mirrored_ray = -mirror(ray, norm);
     // ambient
-    vec3 result = AMBIENT_LIGHT;
+    vec3 result = ambientLight.xyz;
     // diffuse
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
-        vec3 light_color = LIGHTS_DIRECTIONAL_COLOR[i];
         float cos_angle = dot(-light_direction, norm) / length(light_direction) / length(norm);
         if (cos_angle > 0.0) {
-            // check shadow
-            bool shadow = false;
-            trace(point-light_direction*0.01, -light_direction, shadow); // TODO separate sdfs? or how to cast ray
-            if (!shadow) result += cos_angle * DIFFUSE_VAL * light_color;
+            result += cos_angle * diffuseVal * get_light_including_shadows(i, point);
         }
     }
     // specular
     for (int i = 0; i < LIGHTS_DIRECTIONAL_AMOUNT; ++i) {
         vec3 light_direction = LIGHTS_DIRECTIONAL_DIRECTION[i];
-        vec3 light_color = LIGHTS_DIRECTIONAL_COLOR[i];
         if (dot(-light_direction, norm) > 0.0) {
             float cos_angle = abs(dot(-light_direction, mirrored_ray)) / length(light_direction) / length(mirrored_ray);
-            // check shadow
-            bool shadow = false;
-            trace(point-light_direction*0.01, -light_direction, shadow); // TODO separate sdfs? or how to cast ray
-            if (!shadow) result += pow(cos_angle, SPEC_POW) * SPEC_VAL * light_color;
+            result += pow(cos_angle, specPow) * specVal * get_light_including_shadows(i, point);
         }
     }
     // apply texture
@@ -315,18 +316,157 @@ vec3 get_color(in vec3 point, in vec3 ray) {
     return result;
 }
 
+bool intersectParticle(vec3 rayOrigin, vec3 rayDir, vec3 particlePos, float particleSize, out float t, out vec4 particleColor) {
+    vec3 oc = rayOrigin - particlePos;
+    float a = dot(rayDir, rayDir);
+    float b = 2.0 * dot(oc, rayDir);
+    float c = dot(oc, oc) - particleSize * particleSize;
+
+    float discriminant = b * b - 4.0 * a * c;
+
+    if (discriminant < 0.0) {
+        return false;
+    }
+
+    float sd = sqrt(discriminant);
+    t = (-b - sd) / (2.0 * a);
+    if (t < 0.0) {
+      t = (-b + sd) / (2.0 * a);
+      if (t < 0.0) {
+          return false;
+      }
+    }
+
+    return true;
+}
+
+// Modified trace function to handle particle transparency
+vec4 trace_transparent(vec3 position, vec3 ray, out bool hit, out float distance) {
+    float SDF_STEP = 0.8;
+    float MAX_STEP = 1000.0;
+    float MIN_STEP = 0.0001;
+
+    vec3 currentPos = position;
+    vec3 accumulatedColor = vec3(0.0);
+    float accumulatedAlpha = 0.0;
+    float accumulatedSteps = 0.0;
+    vec3 ray_step = ray / length(ray);
+    distance = -1.0;
+
+    for (int i = 0; i < 500; ++i) {
+        // First check SDF
+        float sdf_dist = sdf(currentPos);
+
+        // Check particle collisions
+        float closestParticleT = MAX_STEP;
+        vec4 closestParticleColor = vec4(0.0);
+        int closestParticleIndex = -1;
+
+        for (int p = 0; p < min(particleCount, 500); p++) {
+            float t;
+            vec4 particleColor;
+            if (intersectParticle(currentPos, ray_step, particles[p].position, particles[p].size, t, particleColor)) {
+                if (t < closestParticleT) {
+                    closestParticleT = t;
+                    closestParticleColor = particles[p].color;
+                    closestParticleIndex = p;
+                }
+            }
+        }
+
+        // Determine the closest hit (SDF or particle)
+        if (sdf_dist < MIN_STEP) {
+            // Hit scene geometry
+            hit = true;
+            if (distance < 0) distance = accumulatedSteps;
+            vec3 sceneColor = get_color(currentPos, ray);
+            return vec4(mix(accumulatedColor, sceneColor, 1.0 - accumulatedAlpha), 1.0);
+        }
+        else if (closestParticleT < sdf_dist && closestParticleT < MAX_STEP) {
+            // Hit a particle
+            vec3 hitPos = currentPos + ray_step * closestParticleT;
+            vec4 particleColor = closestParticleColor;
+
+            // Blend with accumulated color
+            accumulatedColor = accumulatedColor + particleColor.rgb * particleColor.a * (1.0 - accumulatedAlpha);
+            accumulatedAlpha = accumulatedAlpha + particleColor.a * (1.0 - accumulatedAlpha);
+
+            // Continue tracing from just beyond the particle
+            currentPos = hitPos + ray_step * 0.01;
+            accumulatedSteps += 0.01 + closestParticleT;
+            if (distance < 0) distance = accumulatedSteps;
+
+            if (accumulatedAlpha > 0.99) {
+                hit = true;
+                return vec4(accumulatedColor, 1.0);
+            }
+
+            continue;
+}
+        else {
+            // No hit, continue marching
+            float step_size = min(sdf_dist, closestParticleT);
+            accumulatedSteps += step_size;;
+
+            if (accumulatedSteps > MAX_STEP) {
+                hit = false;
+                return vec4(accumulatedColor, accumulatedAlpha);
+            }
+
+            currentPos += step_size * ray_step * SDF_STEP;
+        }
+    }
+
+    hit = false;
+    return vec4(accumulatedColor, accumulatedAlpha);
+}
 
 
-// main logic
+
+vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)
+{
+    const float FOG_FULL_DISTANCE = 1000;
+    if (distance < 0) distance = 100000;
+
+    float fog_divisions = min(128, fogDivisions);
+
+    vec3 result_color = vec3(0.0, 0.0, 0.0);
+    float stepf = distance / fog_divisions;
+    for (int i = 0; i < min(128, fog_divisions); ++i) {
+        vec3 fog_spot = position + (i + 0.5) * stepf * ray;
+        for (int j = 0; j < LIGHTS_DIRECTIONAL_AMOUNT; ++j) {
+            result_color = result_color + get_light_including_shadows(j, fog_spot) / (fog_divisions * 1.0); // * (1.0 + dot(LIGHTS_DIRECTIONAL_DIRECTION[j], ray));
+        }
+    }
+    // get fog texture
+    vec2 fogUV = gl_FragCoord.xy / iResolution.xy;
+    vec4 fogData = texture(fogTex, fogUV);
+
+    // calculate total
+    float fog_density = fogGeneralDensity * fogData.a;
+    return mix(color, result_color * fogData.rgb, fog_density);
+}
+
+
+
 
 void main()
 {
+    if (lightMovementEnabled) LIGHTS_DIRECTIONAL_DIRECTION[0] += vec3(cos(iTime * 4) / 4, 0, 0);
+
     vec2 fragCoord = gl_FragCoord.xy;
 
     // position
-    vec2 mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
-    vec3 position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
-    //position *= 0.0;
+    vec2 mouse = vec2(0.0, 0.0);
+    vec3 position = vec3(0.0, 0.0, 0.0);
+    if (mouseControlType == 0) {
+        mouse = vec2(0.333, 0.0);
+    } else if (mouseControlType == 1) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+        position = 30.0 * vec3(sin(mouse.x * 6.28), cos(mouse.x * 6.28) * sin(-mouse.y * 6.28), cos(mouse.x * 6.28) * cos(-mouse.y * 6.28));
+    } else if (mouseControlType == 2) {
+        mouse = iMouse.xy * 1.0f / iResolution.xy - vec2(0.0, 0.5);
+    }
     // ray
     vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
     uv.x *= iResolution.x / iResolution.y;
@@ -343,17 +483,19 @@ void main()
     );
     ray *= -camera;
 
+    // Use the new transparent trace function
     vec3 result_color = vec3(0.0, 0.0, 0.0);
-    for (int i = 0; i < 10; ++i) {
-        bool hit = false;
-        vec3 point = trace(position, ray, hit);
-        float current_color_power = pow(2.0, float(-i) * 2.0);
-        if (hit) {
-            vec3 color = clamp_color(get_color(point, ray));
-            result_color += color * current_color_power;
-            position = point - ray * 0.01; // TODO separate sdfs? or how to cast ray
-            ray = -mirror(ray, get_normal(point));
-        }
+    bool hit = false;
+    float distance = 0;
+    vec4 color = trace_transparent(position, ray, hit, distance);
+    if (hit) {
+        result_color = vec3(color);
+    } else {
+        result_color = mix(vec3(color), vec3(0.1, 0.1, 0.3), 1 - color.a);
     }
+
+    if (fogEnabled == 1)
+        result_color = apply_fog(result_color, position, ray, distance);
     fragColor = vec4(result_color, 1.0);
 }
+

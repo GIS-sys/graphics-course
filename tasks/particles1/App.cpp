@@ -35,8 +35,8 @@ void App::initParticlePipeline() {
     etna::create_program(
         "particle",
         {
-            FOG_SHADERS_ROOT "particle.vert.spv",
-            FOG_SHADERS_ROOT "particle.frag.spv"
+            PARTICLES1_SHADERS_ROOT "particle.vert.spv",
+            PARTICLES1_SHADERS_ROOT "particle.frag.spv"
         }
     );
 
@@ -95,8 +95,8 @@ App::App()
   // Init shaders
   etna::create_program("local_shadertoy2_texture",
     {
-      FOG_SHADERS_ROOT "toy.vert.spv",
-      FOG_SHADERS_ROOT "texture.frag.spv",
+      PARTICLES1_SHADERS_ROOT "toy.vert.spv",
+      PARTICLES1_SHADERS_ROOT "texture.frag.spv",
     }
   );
   computePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline("local_shadertoy2_texture", etna::GraphicsPipeline::CreateInfo {
@@ -129,8 +129,8 @@ App::App()
   etna::create_program(
     "shader",
     {
-      FOG_SHADERS_ROOT "toy.vert.spv",
-      FOG_SHADERS_ROOT "toy.frag.spv"
+      PARTICLES1_SHADERS_ROOT "toy.vert.spv",
+      PARTICLES1_SHADERS_ROOT "toy.frag.spv"
     }
   );
   pipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
@@ -147,7 +147,7 @@ App::App()
   int height;
   int channels;
   unsigned char* loaded = stbi_load(
-    FOG_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
+    PARTICLES1_SHADERS_ROOT "../../../../resources/textures/test_tex_1.png",
     &width,
     &height,
     &channels,
@@ -172,9 +172,6 @@ App::App()
     0, 0,
     std::span<const std::byte>(reinterpret_cast<const std::byte*>(loaded), width * height * channels)
   );
-
-  fogTextureResolution = resolution / 2u;
-  initFogTexturePipeline();
 
   initParticlePipeline();
 
@@ -279,14 +276,7 @@ void App::drawGui() {
     };
     ImGui::Combo("Mouse Control Type", &mouseControlType, items, IM_ARRAYSIZE(items));
 
-    if (ImGui::CollapsingHeader("Light")) {
-        ImGui::SliderFloat3("Ambient Light", &ambientLight[0], 0.0f, 1.0f);
-        ImGui::SliderFloat("Diffuse Val", &diffuseVal, 0.0f, 1.0f);
-        ImGui::SliderFloat("Specular Power", &specPow, 0.0f, 50.0f);
-        ImGui::SliderFloat("Specular Value", &specVal, 0.0f, 1.0f);
-    }
-
-    if (ImGui::CollapsingHeader("Particle System")) {
+    if (ImGui::CollapsingHeader("Particle System", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::SliderFloat3("Emitter Position", &emitterParams.position.x, -50.0f, 50.0f);
         ImGui::SliderFloat("Spawn Rate", &emitterParams.spawnRate, 1.0f, 100.0f);
         ImGui::SliderFloat("Particle Lifetime", &emitterParams.particleLifetime, 0.1f, 5.0f);
@@ -304,24 +294,6 @@ void App::drawGui() {
                 ++i;
             }
         }
-    }
-
-    if (ImGui::CollapsingHeader("Volumetric Fog", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Checkbox("Enabled", &fogEnabled);
-        ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 0.9f);
-        ImGui::SliderInt("Ray Steps", &fogDivisions, 8, 128);
-        ImGui::SliderFloat("Wind Strength", &fogWindStrength, 0.0, 1.0);
-        ImGui::SliderFloat("Wind Speed", &fogWindSpeed, 0.0, 3.0);
-        ImGui::Text("Quality: %dx%d", fogTextureResolution.x, fogTextureResolution.y);
-        ImGui::Text("Performance: Higher steps = better quality but slower");
-    }
-
-    if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Checkbox("Moving Light Enabled", &lightMovementEnabled);
-        ImGui::SliderFloat("Hole Radius", &holeRadius, 0.01f, 10.0f);
-        ImGui::SliderFloat("Hole Border Length", &holeBorderLength, 10.0, 1000.0);
-        ImGui::SliderFloat("Hole Border Width", &holeBorderWidth, 5.0, 1000.0);
-        ImGui::SliderFloat3("Hole Pos Delta", &holeDelta[0], -70.0, 160.0);
     }
 
     ImGui::NewLine();
@@ -359,7 +331,6 @@ void App::drawFrame()
         // We are done recording GPU commands now and we can send them to be executed by the GPU.
         auto renderingDone =
             commandManager->submit(std::move(currentCmdBuf), std::move(backbufferAvailableSem));
-        static_cast<void>(etna::get_context().getDevice().waitIdle());
 
         // Finally, present the backbuffer the screen
         const bool presented = vkWindow->present(std::move(renderingDone), backbufferView);
@@ -398,26 +369,12 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
   double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
 
   Constants constants {
-    .ambientLight = {ambientLight, 1.0},
-    .holeDelta = holeDelta,
     .res = res,
     .cursor = cursor,
     .time = (float)time,
-    .fogGeneralDensity = fogGeneralDensity,
-    .diffuseVal = diffuseVal,
-    .specPow = specPow,
-    .specVal = specVal,
-    .fogWindStrength = fogWindStrength,
-    .fogWindSpeed = fogWindSpeed,
-    .holeRadius = holeRadius,
-    .holeBorderLength = holeBorderLength,
-    .holeBorderWidth = holeBorderWidth,
     .objectsAmount = objectsAmount,
     .mouseControlType = mouseControlType,
-    .particleCount = (int)particleData.size(),
-    .fogDivisions = fogDivisions,
-    .fogEnabled = fogEnabled,
-    .lightMovementEnabled = lightMovementEnabled,
+    .particleCount = (int)particleData.size() // Add particle count
   };
 
   ETNA_PROFILE_GPU(currentCmdBuf, renderLocalShadertoy2);
@@ -444,19 +401,10 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     currentCmdBuf.draw(3, 1, 0, 0);
   }
 
-  updateFogTexture(currentCmdBuf);
-
   // Transition images for main shader
   etna::set_state(
     currentCmdBuf,
     computeImage.get(),
-    vk::PipelineStageFlagBits2::eFragmentShader,
-    vk::AccessFlagBits2::eShaderRead,
-    vk::ImageLayout::eShaderReadOnlyOptimal,
-    vk::ImageAspectFlagBits::eColor);
-  etna::set_state(
-    currentCmdBuf,
-    fogTextureImage.get(),
     vk::PipelineStageFlagBits2::eFragmentShader,
     vk::AccessFlagBits2::eShaderRead,
     vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -483,14 +431,13 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
   {
     auto simpleMaterialInfo = etna::get_shader_program("shader");
     auto set2 = etna::create_descriptor_set(
-        simpleMaterialInfo.getDescriptorLayoutId(0),
-        currentCmdBuf,
-        {
+      simpleMaterialInfo.getDescriptorLayoutId(0),
+      currentCmdBuf,
+      {
             etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
             etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
             etna::Binding{2, particleBuffer.genBinding()},
-            etna::Binding{3, fogTextureImage.genBinding(fogTextureSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-        });
+      });
 
     etna::RenderTargetState renderTargets{
       currentCmdBuf,
@@ -554,26 +501,12 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
     double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
 
     Constants constants {
-        .ambientLight = {ambientLight, 1.0},
-        .holeDelta = holeDelta,
         .res = res,
         .cursor = cursor,
         .time = (float)time,
-        .fogGeneralDensity = fogGeneralDensity,
-        .diffuseVal = diffuseVal,
-        .specPow = specPow,
-        .specVal = specVal,
-        .fogWindStrength = fogWindStrength,
-        .fogWindSpeed = fogWindSpeed,
-        .holeRadius = holeRadius,
-        .holeBorderLength = holeBorderLength,
-        .holeBorderWidth = holeBorderWidth,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
-        .particleCount = (int)particleData.size(),
-        .fogDivisions = fogDivisions,
-        .fogEnabled = fogEnabled,
-        .lightMovementEnabled = lightMovementEnabled,
+        .particleCount = 0,
     };
 
     // Create descriptor set for particle shader - use mainRenderImage as input
@@ -618,103 +551,5 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         vk::ImageLayout::ePresentSrcKHR,
         vk::ImageAspectFlagBits::eColor);
     etna::flush_barriers(currentCmdBuf);
-}
-
-void App::initFogTexturePipeline() {
-    etna::create_program(
-        "fog_texture",
-        {
-            FOG_SHADERS_ROOT "fog_texture.vert.spv",
-            FOG_SHADERS_ROOT "fog_texture.frag.spv"
-        }
-    );
-
-    fogTexturePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
-        "fog_texture",
-        etna::GraphicsPipeline::CreateInfo{
-            .fragmentShaderOutput = {
-                .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
-            }
-        });
-
-    // Create fog texture image (half resolution)
-    fogTextureImage = etna::get_context().createImage(etna::Image::CreateInfo{
-        .extent = vk::Extent3D{fogTextureResolution.x, fogTextureResolution.y, 1},
-        .name = "fog_texture",
-        .format = vkWindow->getCurrentFormat(),
-        .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment,
-    });
-
-    fogTextureSampler = etna::Sampler(etna::Sampler::CreateInfo{
-        .addressMode = vk::SamplerAddressMode::eClampToEdge,
-        .name = "fogTextureSampler"
-    });
-}
-
-void App::updateFogTexture(vk::CommandBuffer& cmdBuf) {
-    ETNA_PROFILE_GPU(cmdBuf, updateFogTexture);
-
-    // Transition fog texture for writing
-    etna::set_state(
-        cmdBuf,
-        fogTextureImage.get(),
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageAspectFlagBits::eColor);
-    etna::flush_barriers(cmdBuf);
-
-    // Render fog texture
-    etna::RenderTargetState fogState{
-        cmdBuf,
-        {{0, 0}, {fogTextureResolution.x, fogTextureResolution.y}},
-        {{fogTextureImage.get(), fogTextureImage.getView({})}},
-        {}
-    };
-
-    glm::uvec2 res {fogTextureResolution.x, fogTextureResolution.y};
-    glm::uvec2 cursor {osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
-    double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
-
-    Constants fogConstants {
-        .ambientLight = {ambientLight, 1.0},
-        .holeDelta = holeDelta,
-        .res = res,
-        .cursor = cursor,
-        .time = (float)time,
-        .fogGeneralDensity = fogGeneralDensity,
-        .diffuseVal = diffuseVal,
-        .specPow = specPow,
-        .specVal = specVal,
-        .fogWindStrength = fogWindStrength,
-        .fogWindSpeed = fogWindSpeed,
-        .holeRadius = holeRadius,
-        .holeBorderLength = holeBorderLength,
-        .holeBorderWidth = holeBorderWidth,
-        .objectsAmount = objectsAmount,
-        .mouseControlType = mouseControlType,
-        .particleCount = (int)particleData.size(),
-        .fogDivisions = fogDivisions,
-        .fogEnabled = fogEnabled,
-        .lightMovementEnabled = lightMovementEnabled,
-    };
-
-    cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, fogTexturePipeline.getVkPipeline());
-    cmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
-        fogTexturePipeline.getVkPipelineLayout(),
-        vk::ShaderStageFlagBits::eFragment,
-        0, sizeof(fogConstants), &fogConstants);
-
-    cmdBuf.draw(3, 1, 0, 0);
-
-    // Transition back to shader read
-    etna::set_state(
-        cmdBuf,
-        fogTextureImage.get(),
-        vk::PipelineStageFlagBits2::eFragmentShader,
-        vk::AccessFlagBits2::eShaderRead,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        vk::ImageAspectFlagBits::eColor);
-    etna::flush_barriers(cmdBuf);
 }
 
