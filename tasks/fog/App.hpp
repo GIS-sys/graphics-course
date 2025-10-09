@@ -32,6 +32,7 @@ struct Constants
   float specPow;
   float specVal;
   float fogWindStrength;
+  float fogWindSpeed;
   int objectsAmount;
   int mouseControlType;
   int particleCount;
@@ -114,6 +115,7 @@ private:
   etna::Image fogTextureImage;
   etna::Sampler fogTextureSampler;
   glm::uvec2 fogTextureResolution;
-  float fogWindStrength = 5.0;
+  float fogWindStrength = 1.0;
+  float fogWindSpeed = 1.0;
 };
 

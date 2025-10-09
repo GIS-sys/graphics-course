@@ -310,7 +310,8 @@ void App::drawGui() {
         ImGui::Checkbox("Enabled", &fogEnabled);
         ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 2.0f);
         ImGui::SliderInt("Ray Steps", &fogDivisions, 8, 128);
-        ImGui::SliderFloat("Wind Strength", &fogWindStrength, 1.0, 30.0);
+        ImGui::SliderFloat("Wind Strength", &fogWindStrength, 0.01, 30.0);
+        ImGui::SliderFloat("Wind Speed", &fogWindStrength, 0.01, 30.0);
         ImGui::Text("Quality: %dx%d", fogTextureResolution.x, fogTextureResolution.y);
         ImGui::Text("Performance: Higher steps = better quality but slower");
     }
@@ -398,6 +399,7 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     .specPow = specPow,
     .specVal = specVal,
     .fogWindStrength = fogWindStrength,
+    .fogWindSpeed = fogWindSpeed,
     .objectsAmount = objectsAmount,
     .mouseControlType = mouseControlType,
     .particleCount = (int)particleData.size(),
@@ -548,6 +550,7 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         .specPow = specPow,
         .specVal = specVal,
         .fogWindStrength = fogWindStrength,
+        .fogWindSpeed = fogWindSpeed,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
         .particleCount = (int)particleData.size(),
@@ -665,6 +668,7 @@ void App::updateFogTexture(vk::CommandBuffer& cmdBuf) {
         .specPow = specPow,
         .specVal = specVal,
         .fogWindStrength = fogWindStrength,
+        .fogWindSpeed = fogWindSpeed,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
         .particleCount = (int)particleData.size(),
