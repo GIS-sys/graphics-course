@@ -105,7 +105,7 @@ private:
   float specPow = 20.0;
   float specVal = 0.8;
 
-    // Fog texture resources
+  // Fog texture resources
   void initFogTexturePipeline();
   void updateFogTexture(vk::CommandBuffer& cmdBuf);
 

@@ -174,6 +174,7 @@ App::App()
   );
 
   fogTextureResolution = resolution / 2u;
+  initFogTexturePipeline();
 
   initParticlePipeline();
 
@@ -305,10 +306,12 @@ void App::drawGui() {
         }
     }
 
-    if (ImGui::CollapsingHeader("Fog", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Volumetric Fog", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Checkbox("Enabled", &fogEnabled);
-        ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 1.0f);
-        ImGui::SliderInt("Divisions for integral", &fogDivisions, 1, 100);
+        ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 2.0f);
+        ImGui::SliderInt("Ray Steps", &fogDivisions, 8, 128);
+        ImGui::Text("Quality: %dx%d", fogTextureResolution.x, fogTextureResolution.y);
+        ImGui::Text("Performance: Higher steps = better quality but slower");
     }
 
     ImGui::NewLine();
@@ -424,6 +427,8 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     currentCmdBuf.draw(3, 1, 0, 0);
   }
 
+  updateFogTexture(currentCmdBuf);
+
   // Transition images for main shader
   etna::set_state(
     currentCmdBuf,
@@ -461,14 +466,14 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
   {
     auto simpleMaterialInfo = etna::get_shader_program("shader");
     auto set2 = etna::create_descriptor_set(
-      simpleMaterialInfo.getDescriptorLayoutId(0),
-      currentCmdBuf,
-      {
+        simpleMaterialInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
             etna::Binding{0, computeImage.genBinding(computeSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
             etna::Binding{1, image.genBinding(sampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
             etna::Binding{2, particleBuffer.genBinding()},
             etna::Binding{3, fogTextureImage.genBinding(fogTextureSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-      });
+        });
 
     etna::RenderTargetState renderTargets{
       currentCmdBuf,
@@ -589,5 +594,96 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         vk::ImageLayout::ePresentSrcKHR,
         vk::ImageAspectFlagBits::eColor);
     etna::flush_barriers(currentCmdBuf);
+}
+
+void App::initFogTexturePipeline() {
+    etna::create_program(
+        "fog_texture",
+        {
+            FOG_SHADERS_ROOT "fog_texture.vert.spv",
+            FOG_SHADERS_ROOT "fog_texture.frag.spv"
+        }
+    );
+
+    fogTexturePipeline = etna::get_context().getPipelineManager().createGraphicsPipeline(
+        "fog_texture",
+        etna::GraphicsPipeline::CreateInfo{
+            .fragmentShaderOutput = {
+                .colorAttachmentFormats = {vkWindow->getCurrentFormat()}
+            }
+        });
+
+    // Create fog texture image (half resolution)
+    fogTextureImage = etna::get_context().createImage(etna::Image::CreateInfo{
+        .extent = vk::Extent3D{fogTextureResolution.x, fogTextureResolution.y, 1},
+        .name = "fog_texture",
+        .format = vkWindow->getCurrentFormat(),
+        .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment,
+    });
+
+    fogTextureSampler = etna::Sampler(etna::Sampler::CreateInfo{
+        .addressMode = vk::SamplerAddressMode::eClampToEdge,
+        .name = "fogTextureSampler"
+    });
+}
+
+void App::updateFogTexture(vk::CommandBuffer& cmdBuf) {
+    ETNA_PROFILE_GPU(cmdBuf, updateFogTexture);
+
+    // Transition fog texture for writing
+    etna::set_state(
+        cmdBuf,
+        fogTextureImage.get(),
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageAspectFlagBits::eColor);
+    etna::flush_barriers(cmdBuf);
+
+    // Render fog texture
+    etna::RenderTargetState fogState{
+        cmdBuf,
+        {{0, 0}, {fogTextureResolution.x, fogTextureResolution.y}},
+        {{fogTextureImage.get(), fogTextureImage.getView({})}},
+        {}
+    };
+
+    glm::uvec2 res {fogTextureResolution.x, fogTextureResolution.y};
+    glm::uvec2 cursor {osWindow->mouse.freePos.x, osWindow->mouse.freePos.y};
+    double time = (std::chrono::system_clock::now().time_since_epoch().count() % 1'000'000'000'000ll) / 1'000'000'000.0;
+
+    Constants fogConstants {
+        .ambientLight = {ambientLight, 1.0},
+        .res = res,
+        .cursor = cursor,
+        .time = (float)time,
+        .fogGeneralDensity = fogGeneralDensity,
+        .diffuseVal = diffuseVal,
+        .specPow = specPow,
+        .specVal = specVal,
+        .objectsAmount = objectsAmount,
+        .mouseControlType = mouseControlType,
+        .particleCount = (int)particleData.size(),
+        .fogDivisions = fogDivisions,
+        .fogEnabled = fogEnabled,
+    };
+
+    cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, fogTexturePipeline.getVkPipeline());
+    cmdBuf.pushConstants<vk::DispatchLoaderDynamic>(
+        fogTexturePipeline.getVkPipelineLayout(),
+        vk::ShaderStageFlagBits::eFragment,
+        0, sizeof(fogConstants), &fogConstants);
+
+    cmdBuf.draw(3, 1, 0, 0);
+
+    // Transition back to shader read
+    etna::set_state(
+        cmdBuf,
+        fogTextureImage.get(),
+        vk::PipelineStageFlagBits2::eFragmentShader,
+        vk::AccessFlagBits2::eShaderRead,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        vk::ImageAspectFlagBits::eColor);
+    etna::flush_barriers(cmdBuf);
 }
 

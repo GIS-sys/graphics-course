@@ -501,6 +501,17 @@ vec3 apply_fog(vec3 color, vec3 position, vec3 ray, float distance)  // TODO
     return color + clamp(result_color * fog_density * max(0.0, min(1.0, distance / FOG_FULL_DISTANCE)), 0.0, 0.9);
 }
 
+// Remove old fog function and replace with:
+vec3 apply_volumetric_fog(vec3 color, vec3 position, vec3 ray, float distance) {
+    if (fogEnabled == 0) return color;
+
+    // Sample fog texture with bilinear filtering (automatic with sampler)
+    vec2 fogUV = gl_FragCoord.xy / iResolution.xy;
+    vec4 fogData = texture(fogTex, fogUV);
+
+    // Blend scene color with fog
+    return mix(color, fogData.rgb, fogData.a * fogGeneralDensity);
+}
 
 
 
@@ -547,7 +558,7 @@ void main()
     }
 
     if (fogEnabled == 1)
-        result_color = apply_fog(result_color, position, ray, distance);
+        result_color = apply_volumetric_fog(result_color, position, ray, distance);
     fragColor = vec4(result_color, 1.0);
 }
 
