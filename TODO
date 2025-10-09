@@ -1,6 +1,7 @@
-add shadowmap
+add same base steps in toy.frag as were before, remove them from fog frag
+
+add shadowmap and use it in fog function in toy
+
 
 add small hole in place like a cloud for god rays
-
-fix problem with dog not dependent on where looking PLUS add ambient so fog is not very diff in diff ways
 

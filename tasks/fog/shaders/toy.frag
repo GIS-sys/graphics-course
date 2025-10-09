@@ -128,49 +128,42 @@ float sdf_box(in vec3 pos, vec3 corner, vec3 up, vec3 right, vec3 far) {
 
 // sdf for objects
 
-float sdf_wall(in vec3 pos) {
-    vec3 CENTER = vec3(0, 45, 0);
-    vec3 NORM = vec3(0, 1, 0);
+float sdf_floor(in vec3 pos) {
+    vec3 CENTER = vec3(0, -40, 0);
+    vec3 NORM = vec3(0, -1, 0);
     return sdf_semispace(pos, CENTER, NORM);
 }
 
-float sdf_road(in vec3 pos) {
-    vec3 CORNER = vec3(-200, 45, -40);
-    vec3 UP = vec3(0, -5, 0);
-    vec3 RIGHT = vec3(0, 0, 80);
-    vec3 FAR = vec3(400, 0, 0);
+float sdf_wall_1(in vec3 pos) {
+    vec3 CORNER = vec3(-50, 30, 5);
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(100.0, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, 20.0);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
-float sdf_ball(in vec3 pos) {
-    vec3 CENTER = vec3(5, -5, 15);
-    float RADIUS = 3.0;
-    return sdf_sphere(pos, CENTER, RADIUS);
-}
-
-float sdf_melon(in vec3 pos) {
-    vec3 CENTER = vec3(-15, -5, 15);
-    float RADIUS = 5.0;
-    return sdf_sphere(pos, CENTER, RADIUS) + dot(sin((pos - CENTER) * 2.0), vec3(1.0, 1.0, 1.0)) / 20.0;
-}
-
-float sdf_box(in vec3 pos) {
-    vec3 CORNER = vec3(0, 0, 10);
-    vec3 UP = vec3(8.0, 8.0, 0.0);
-    vec3 RIGHT = vec3(-8.0, 8.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 8.0);
+float sdf_wall_2(in vec3 pos) {
+    vec3 CORNER = vec3(-50, 30, -5);
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(100.0, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, -20.0);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
+float sdf_wall_3(in vec3 pos) {
+    vec3 CORNER = vec3(5, 30, -50);
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(20.0, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, 100.0);
+    return sdf_box(pos, CORNER, UP, RIGHT, FAR);
+}
 
-float sdf_cheese(in vec3 pos) {
-    vec3 CORNER = vec3(-13.2, -2.7, 6);
-    vec3 UP = vec3(3.0, 0.0, 1.5);
-    vec3 RIGHT = vec3(0.0, 2.0, 0.0);
-    vec3 FAR = vec3(-1, 0.0, 2.0);
-    vec3 CENTER = vec3(-12, -4, 7);
-    float RADIUS = 3.0;
-    return max(sdf_sphere(pos, CENTER, RADIUS), sdf_box(pos, CORNER, UP, RIGHT, FAR));
+float sdf_wall_4(in vec3 pos) {
+    vec3 CORNER = vec3(-5, 30, -50);
+    vec3 UP = vec3(0.0, 0.2, 0.0);
+    vec3 RIGHT = vec3(-20.0, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, 100.0);
+    return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
 float sdf_several(in vec3 pos) {
@@ -190,7 +183,7 @@ float sdf_several(in vec3 pos) {
 // sdf for scene
 
 float sdf(in vec3 pos) {
-    return mmin6(sdf_wall(pos), sdf_road(pos), /*sdf_ball(pos),*/ sdf_several(pos), sdf_melon(pos), sdf_box(pos), sdf_cheese(pos));
+    return mmin6(sdf_floor(pos), sdf_wall_1(pos), sdf_wall_2(pos), sdf_wall_3(pos), sdf_wall_4(pos), sdf_several(pos));
 }
 
 vec3 sdf_normal(vec3 point) {
@@ -216,53 +209,29 @@ vec3 get_normal(vec3 point) {
 // colors for objects
 
 vec3 col_wall(in vec3 pos) {
-    //return vec3(1.0, 1.0, 1.0);
     return vec3(texture(colorTex, vec2(remainder(pos.x / 100.0), remainder(pos.z / 100.0))));
 }
 
-vec3 col_road(in vec3 pos) {
-    //return vec3(1.0, 1.0, 0.5);
+vec3 col_several(in vec3 pos) {
     return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
 }
 
-vec3 col_box(in vec3 pos) {
-    // TASK PART 2 - triplanar projection
-    vec3 CORNER = vec3(0, 0, 10);
-    vec3 UP = vec3(8.0, 8.0, 0.0);
-    vec3 RIGHT = vec3(-8.0, 8.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 8.0);
-    vec3 CENTER = CORNER + (UP + RIGHT + FAR) / 2.0;
-
-    vec3 norm = get_normal(pos);
-    vec3 closest_plane_normal = vec3(
-        (norm.x == maxvec3(norm)) ? 1.0 : 0.0,
-        (norm.y == maxvec3(norm)) ? 1.0 : 0.0,
-        (norm.z == maxvec3(norm)) ? 1.0 : 0.0
-    );
-    vec3 pro_base_1 = normalize(vec3(1, 1, 1));
-    vec3 pro_base_2 = cross(pro_base_1, closest_plane_normal);
-    vec3 v_to_pro = pos - CENTER;
-    float texture_x = dot(v_to_pro, pro_base_1) / length(pro_base_1) / 4.0;
-    float texture_y = dot(v_to_pro, pro_base_2) / length(pro_base_2) / 4.0;
-    //return vec3(0.5, 0.0, 0.0);
-    return vec3(texture(fileTex, vec2(texture_x, texture_y)));
+vec3 col_floor(in vec3 pos) {
+    return vec3(texture(fileTex, vec2(remainder(pos.z / 40.0), remainder(pos.x / 40.0))));
 }
 
 
 // col for scene
 
 vec3 col(in vec3 pos, in vec3 ray) {
-//return get_normal(pos);
     float MIN_STEP = 0.00001;
     float dist = sdf(pos);
-    if (dist == sdf_wall(pos)) {
-        return col_wall(pos);
-    } else if (dist == sdf_road(pos)) {
-        return col_road(pos);
-    } else if (dist == sdf_box(pos)) {
-        return col_box(pos);
+    if (dist == sdf_floor(pos)) {
+        return col_floor(pos);
+    } else if (dist == sdf_several(pos)) {
+        return col_several(pos);
     } else {
-        return vec3(1.0, 1.0, 1.0);
+        return col_wall(pos);
     }
 }
 
@@ -273,17 +242,11 @@ vec3 col(in vec3 pos, in vec3 ray) {
 // lights
 
 const int LIGHTS_DIRECTIONAL_AMOUNT = 1;
-vec3[4] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
-    vec3(1.0, 1.0, 0.0),
-    vec3(0.5, 1.0, 2.0),
-    vec3(-1.0, 1.0, 0.0),
-    vec3(3, 1.0, -2.0)
+vec3[1] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
+    vec3(0.0, -1.0, 0.0)
 );
-vec3[4] LIGHTS_DIRECTIONAL_COLOR = vec3[](
-    vec3(0.5),
-    vec3(1.0, 0.0, 0.0) * 0.5,
-    vec3(0.3, 0.3, 0.85) * 0.5,
-    vec3(0.0, 1.0, 0.0) * 0.5
+vec3[1] LIGHTS_DIRECTIONAL_COLOR = vec3[](
+    vec3(0.5)
 );
 
 
