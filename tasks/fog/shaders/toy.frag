@@ -8,6 +8,7 @@ layout(location = 0) out vec4 fragColor;
 layout(push_constant) uniform params
 {
     vec4 ambientLight;
+    vec4 holeDelta;
     uvec2 iResolution;
     uvec2 iMouse;
     float iTime;
@@ -17,6 +18,9 @@ layout(push_constant) uniform params
     float specVal;
     float fogWindStrength;
     float fogWindSpeed;
+    float holeRadius;
+    float holeBorderLength;
+    float holeBorderWidth;
     int objectsAmount;
     int mouseControlType;
     int particleCount;
@@ -135,34 +139,34 @@ float sdf_floor(in vec3 pos) {
 }
 
 float sdf_wall_1(in vec3 pos) {
-    vec3 CORNER = vec3(-50, 30, 5);
+    vec3 CORNER = vec3(-holeBorderLength / 2, 0, holeRadius) + holeDelta.xyz;
     vec3 UP = vec3(0.0, 0.2, 0.0);
-    vec3 RIGHT = vec3(100.0, 0.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 20.0);
+    vec3 RIGHT = vec3(holeBorderLength, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, holeBorderWidth);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
 float sdf_wall_2(in vec3 pos) {
-    vec3 CORNER = vec3(-50, 30, -5);
+    vec3 CORNER = vec3(-holeBorderLength / 2, 0, -holeRadius) + holeDelta.xyz;
     vec3 UP = vec3(0.0, 0.2, 0.0);
-    vec3 RIGHT = vec3(100.0, 0.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, -20.0);
+    vec3 RIGHT = vec3(holeBorderLength, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, -holeBorderWidth);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
 float sdf_wall_3(in vec3 pos) {
-    vec3 CORNER = vec3(5, 30, -50);
+    vec3 CORNER = vec3(holeRadius, 0, -holeBorderLength / 2) + holeDelta.xyz;
     vec3 UP = vec3(0.0, 0.2, 0.0);
-    vec3 RIGHT = vec3(20.0, 0.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 100.0);
+    vec3 RIGHT = vec3(holeBorderWidth, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, holeBorderLength);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
 float sdf_wall_4(in vec3 pos) {
-    vec3 CORNER = vec3(-5, 30, -50);
+    vec3 CORNER = vec3(-holeRadius, 0, -holeBorderLength / 2) + holeDelta.xyz;
     vec3 UP = vec3(0.0, 0.2, 0.0);
-    vec3 RIGHT = vec3(-20.0, 0.0, 0.0);
-    vec3 FAR = vec3(0.0, 0.0, 100.0);
+    vec3 RIGHT = vec3(-holeBorderWidth, 0.0, 0.0);
+    vec3 FAR = vec3(0.0, 0.0, holeBorderLength);
     return sdf_box(pos, CORNER, UP, RIGHT, FAR);
 }
 
@@ -172,7 +176,7 @@ float sdf_several(in vec3 pos) {
     float ENTIRE_LENGTH = 50.0;
     float deltaBetween = ENTIRE_LENGTH / (objectsAmount + 1);
     float deltaStart = -ENTIRE_LENGTH / 2 + deltaBetween;
-    float result = sdf_sphere(pos, CENTER, RADIUS);
+    float result = 1000000.0;
     for (int i = 0; i < 4096; ++i) {
         if (i >= objectsAmount) break;
         result = min(result, sdf_sphere(pos, CENTER + deltaStart + deltaBetween * i, RADIUS));
@@ -243,7 +247,7 @@ vec3 col(in vec3 pos, in vec3 ray) {
 
 const int LIGHTS_DIRECTIONAL_AMOUNT = 1;
 vec3[1] LIGHTS_DIRECTIONAL_DIRECTION = vec3[](
-    vec3(0.0, -1.0, 0.0)
+    vec3(0.0, -1.0, 0.3)
 );
 vec3[1] LIGHTS_DIRECTIONAL_COLOR = vec3[](
     vec3(0.5)

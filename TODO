@@ -1,7 +1,6 @@
+change what speed strength does
+
 add same base steps in toy.frag as were before, remove them from fog frag
 
 add shadowmap and use it in fog function in toy
-
-
-add small hole in place like a cloud for god rays
 

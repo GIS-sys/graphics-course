@@ -24,6 +24,7 @@ struct ParticleData {
 struct Constants
 {
   glm::vec4 ambientLight;
+  glm::vec4 holeDelta;
   glm::uvec2 res;
   glm::uvec2 cursor;
   float time;
@@ -33,6 +34,9 @@ struct Constants
   float specVal;
   float fogWindStrength;
   float fogWindSpeed;
+  float holeRadius;
+  float holeBorderLength;
+  float holeBorderWidth;
   int objectsAmount;
   int mouseControlType;
   int particleCount;
@@ -77,8 +81,8 @@ private:
   etna::Sampler sampler;
   etna::Sampler computeSampler;
 
-  int objectsAmount = 5;
-  int mouseControlType = 2;
+  int objectsAmount = 2;
+  int mouseControlType = 0;
 
   void InitEmitters();
   std::unique_ptr<ParticleSystem> particleSystem;
@@ -97,8 +101,8 @@ private:
   etna::Sampler mainRenderSampler;
 
   // fog
-  float fogGeneralDensity = 0.4;
-  int fogDivisions = 5;
+  float fogGeneralDensity = 0.2;
+  int fogDivisions = 16;
   bool fogEnabled = true;
 
   // specs
@@ -115,7 +119,11 @@ private:
   etna::Image fogTextureImage;
   etna::Sampler fogTextureSampler;
   glm::uvec2 fogTextureResolution;
-  float fogWindStrength = 1.0;
-  float fogWindSpeed = 1.0;
+  float fogWindStrength = 0.5;
+  float fogWindSpeed = 15.0;
+  float holeRadius = 5.0;
+  float holeBorderLength = 100.0;
+  float holeBorderWidth = 20.0;
+  glm::vec4 holeDelta{-30.0, 20.0, 30.0, 0.0};
 };
 

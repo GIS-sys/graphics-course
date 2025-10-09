@@ -10,6 +10,7 @@ layout(binding = 0) uniform sampler2D inputTexture;
 layout(push_constant) uniform params
 {
     vec4 ambientLight;
+    vec4 holeDelta;
     uvec2 iResolution;
     uvec2 iMouse;
     float iTime;
@@ -19,6 +20,9 @@ layout(push_constant) uniform params
     float specVal;
     float fogWindStrength;
     float fogWindSpeed;
+    float holeRadius;
+    float holeBorderLength;
+    float holeBorderWidth;
     int objectsAmount;
     int mouseControlType;
     int particleCount;

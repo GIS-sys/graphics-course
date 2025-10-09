@@ -316,6 +316,13 @@ void App::drawGui() {
         ImGui::Text("Performance: Higher steps = better quality but slower");
     }
 
+    if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::SliderFloat("Hole Radius", &holeRadius, 0.01f, 10.0f);
+        ImGui::SliderFloat("Hole Border Length", &holeBorderLength, 10.0, 1000.0);
+        ImGui::SliderFloat("Hole Border Width", &holeBorderWidth, 5.0, 1000.0);
+        ImGui::SliderFloat3("Hole Pos Delta", &holeDelta[0], -70.0, 70.0);
+    }
+
     ImGui::NewLine();
     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press 'B' to recompile and reload shaders");
 
@@ -391,6 +398,7 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
 
   Constants constants {
     .ambientLight = {ambientLight, 1.0},
+    .holeDelta = holeDelta,
     .res = res,
     .cursor = cursor,
     .time = (float)time,
@@ -400,6 +408,9 @@ void App::specificDrawFrameMain(vk::CommandBuffer& currentCmdBuf, vk::Image& bac
     .specVal = specVal,
     .fogWindStrength = fogWindStrength,
     .fogWindSpeed = fogWindSpeed,
+    .holeRadius = holeRadius,
+    .holeBorderLength = holeBorderLength,
+    .holeBorderWidth = holeBorderWidth,
     .objectsAmount = objectsAmount,
     .mouseControlType = mouseControlType,
     .particleCount = (int)particleData.size(),
@@ -542,6 +553,7 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
 
     Constants constants {
         .ambientLight = {ambientLight, 1.0},
+        .holeDelta = holeDelta,
         .res = res,
         .cursor = cursor,
         .time = (float)time,
@@ -551,6 +563,9 @@ void App::specificDrawFrameParticles(vk::CommandBuffer& currentCmdBuf, vk::Image
         .specVal = specVal,
         .fogWindStrength = fogWindStrength,
         .fogWindSpeed = fogWindSpeed,
+        .holeRadius = holeRadius,
+        .holeBorderLength = holeBorderLength,
+        .holeBorderWidth = holeBorderWidth,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
         .particleCount = (int)particleData.size(),
@@ -660,6 +675,7 @@ void App::updateFogTexture(vk::CommandBuffer& cmdBuf) {
 
     Constants fogConstants {
         .ambientLight = {ambientLight, 1.0},
+        .holeDelta = holeDelta,
         .res = res,
         .cursor = cursor,
         .time = (float)time,
@@ -669,6 +685,9 @@ void App::updateFogTexture(vk::CommandBuffer& cmdBuf) {
         .specVal = specVal,
         .fogWindStrength = fogWindStrength,
         .fogWindSpeed = fogWindSpeed,
+        .holeRadius = holeRadius,
+        .holeBorderLength = holeBorderLength,
+        .holeBorderWidth = holeBorderWidth,
         .objectsAmount = objectsAmount,
         .mouseControlType = mouseControlType,
         .particleCount = (int)particleData.size(),

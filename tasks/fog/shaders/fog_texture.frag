@@ -5,6 +5,7 @@ layout(location = 0) out vec4 outColor;
 
 layout(push_constant) uniform params {
     vec4 ambientLight;
+    vec4 holeDelta;
     uvec2 iResolution;
     uvec2 iMouse;
     float iTime;
@@ -14,6 +15,9 @@ layout(push_constant) uniform params {
     float specVal;
     float fogWindStrength;
     float fogWindSpeed;
+    float holeRadius;
+    float holeBorderLength;
+    float holeBorderWidth;
     int objectsAmount;
     int mouseControlType;
     int particleCount;
@@ -59,9 +63,8 @@ float fogDensity(vec3 pos, float time) {
     float heightFactor = exp(-pos.y * 0.1);
 
     // Animated noise for realistic fog movement
-    float density = fbm(pos.xz * 0.01 + wind) * 0.5 +
-                   fbm(pos.xz * 0.02 - wind * 1.3) * 0.25;
-    density /= pc.fogWindStrength;
+    float density = fbm(pos.xz * 0.01 + wind * pc.fogWindStrength) * 0.5 +
+                   fbm(pos.xz * 0.02 - wind * pc.fogWindStrength) * 0.25;
 
     return density * heightFactor * pc.fogGeneralDensity;
 }
