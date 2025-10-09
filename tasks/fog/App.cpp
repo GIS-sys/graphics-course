@@ -310,8 +310,8 @@ void App::drawGui() {
         ImGui::Checkbox("Enabled", &fogEnabled);
         ImGui::SliderFloat("General Density", &fogGeneralDensity, 0.01f, 0.9f);
         ImGui::SliderInt("Ray Steps", &fogDivisions, 8, 128);
-        ImGui::SliderFloat("Wind Strength", &fogWindStrength, 0.01, 30.0);
-        ImGui::SliderFloat("Wind Speed", &fogWindSpeed, 0.01, 30.0);
+        ImGui::SliderFloat("Wind Strength", &fogWindStrength, 0.0, 1.0);
+        ImGui::SliderFloat("Wind Speed", &fogWindSpeed, 0.0, 3.0);
         ImGui::Text("Quality: %dx%d", fogTextureResolution.x, fogTextureResolution.y);
         ImGui::Text("Performance: Higher steps = better quality but slower");
     }

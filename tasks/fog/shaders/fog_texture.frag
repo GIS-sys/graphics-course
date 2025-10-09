@@ -64,8 +64,7 @@ float fogDensity(vec3 pos, float time) {
     float heightFactor = exp(-pos.y * 0.1);
 
     // Animated noise for realistic fog movement
-    float density = fbm(pos.xz * 0.01 + wind * pc.fogWindStrength) * 0.5 +
-                   fbm(pos.xz * 0.02 - wind * pc.fogWindStrength) * 0.25;
+    float density = (fbm(pos.xz * 0.01 + wind) - fbm(pos.xz * 0.01 - wind)) * pc.fogWindStrength + fbm(pos.xz * 0.01);
 
     return density * heightFactor * pc.fogGeneralDensity;
 }

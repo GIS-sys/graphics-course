@@ -120,8 +120,9 @@ private:
   etna::Image fogTextureImage;
   etna::Sampler fogTextureSampler;
   glm::uvec2 fogTextureResolution;
-  float fogWindStrength = 0.5;
-  float fogWindSpeed = 15.0;
+  int fogTextureResolutionDecrease = 2;
+  float fogWindStrength = 0.8;
+  float fogWindSpeed = 1.2;
   float holeRadius = 5.0;
   float holeBorderLength = 100.0;
   float holeBorderWidth = 20.0;
